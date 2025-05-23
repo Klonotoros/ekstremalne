@@ -1,0 +1,75 @@
+package pl.edu.agh.isi.cli;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
+import java.io.File;
+import java.util.List;
+import java.util.concurrent.Callable;
+
+import pl.edu.agh.isi.FamilyMember;
+import pl.edu.agh.isi.FamilyMemberRepository;
+import pl.edu.agh.isi.FamilyMemberService;
+
+@Command(
+    name = "list-members",
+    description = "List all family members",
+    mixinStandardHelpOptions = false
+)
+public class ListFamilyMembersCommand implements Callable<Integer> {
+    
+    @Option(names = {"-f", "--file"}, description = "Family members data file", defaultValue = "family_members.json", hidden = true)
+    private File familyMembersFile;
+    
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help message")
+    private boolean helpRequested = false;
+
+    @Override
+    public Integer call() {
+        try {
+            if (helpRequested) {
+                showExamples();
+                return 0;
+            }
+            
+            FamilyMemberRepository repository = new FamilyMemberRepository(familyMembersFile);
+            FamilyMemberService service = new FamilyMemberService(repository);
+            
+            List<FamilyMember> members = service.getAllFamilyMembers();
+            
+            if (members.isEmpty()) {
+                System.out.println("No family members found");
+                return 0;
+            }
+            
+            System.out.println("Family Members:");
+            System.out.println("---------------------------");
+            System.out.println("ID | Name");
+            System.out.println("---------------------------");
+            
+            for (FamilyMember member : members) {
+                System.out.printf("%-2d | %s%n", member.getId(), member.getName());
+            }
+            
+            System.out.println("---------------------------");
+            System.out.println("Total: " + members.size() + " member(s)");
+            
+            return 0;
+        } catch (Exception e) {
+            System.err.println("Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return 2;
+        }
+    }
+    
+    private void showExamples() {
+        System.out.println("Usage: list-members");
+        System.out.println();
+        System.out.println("Examples:");
+        System.out.println("  list-members      - List all family members");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -h, --help        Show this help message");
+    }
+} 
