@@ -7,6 +7,7 @@ import picocli.CommandLine.Parameters;
 
 import java.io.File;
 import java.util.concurrent.Callable;
+import java.util.Optional;
 
 import pl.edu.agh.isi.FamilyMember;
 import pl.edu.agh.isi.FamilyMemberRepository;
@@ -36,11 +37,10 @@ public class RemoveFamilyMemberCommand implements Callable<Integer> {
                 return 0;
             }
             
-            FamilyMemberRepository repository = new FamilyMemberRepository(familyMembersFile);
-            FamilyMemberService service = new FamilyMemberService(repository);
+            FamilyMemberService service = createFamilyMemberService(familyMembersFile);
             
-            if (service.getFamilyMember(id).isPresent()) {
-                FamilyMember member = service.getFamilyMember(id).get();
+            Optional<FamilyMember> memberOpt = service.getFamilyMember(id);
+            if (memberOpt.isPresent()) {
                 service.deleteFamilyMember(id);
                 System.out.println("Family member with ID " + id + " was successfully removed");
                 return 0;
@@ -66,5 +66,11 @@ public class RemoveFamilyMemberCommand implements Callable<Integer> {
         System.out.println();
         System.out.println("Options:");
         System.out.println("  -h, --help            Show this help message");
+    }
+    
+    // Protected method for better testability
+    protected FamilyMemberService createFamilyMemberService(File file) {
+        FamilyMemberRepository repository = new FamilyMemberRepository(file);
+        return new FamilyMemberService(repository);
     }
 } 

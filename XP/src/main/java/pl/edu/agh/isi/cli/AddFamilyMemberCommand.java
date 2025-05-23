@@ -36,8 +36,7 @@ public class AddFamilyMemberCommand implements Callable<Integer> {
                 return 0;
             }
             
-            FamilyMemberRepository repository = new FamilyMemberRepository(familyMembersFile);
-            FamilyMemberService service = new FamilyMemberService(repository);
+            FamilyMemberService service = createFamilyMemberService(familyMembersFile);
             
             FamilyMember member = service.createFamilyMember(name);
             System.out.println("Family member added successfully with ID: " + member.getId());
@@ -50,6 +49,12 @@ public class AddFamilyMemberCommand implements Callable<Integer> {
             e.printStackTrace();
             return 2;
         }
+    }
+    
+    // Protected method for better testability
+    protected FamilyMemberService createFamilyMemberService(File file) {
+        FamilyMemberRepository repository = new FamilyMemberRepository(file);
+        return new FamilyMemberService(repository);
     }
     
     private void showExamples() {

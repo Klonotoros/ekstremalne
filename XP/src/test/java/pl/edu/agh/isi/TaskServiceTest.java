@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Task Service")
@@ -443,6 +444,94 @@ class TaskServiceTest {
 
             // Then
             assertTrue(completedTasks.isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("Task Sorting")
+    class TaskSorting {
+
+        @Test
+        @DisplayName("should sort tasks by due date in ascending order")
+        void shouldSortTasksByDueDateAscending() {
+            // Given
+            LocalDateTime now = LocalDateTime.now();
+            Task task1 = new Task(1, "Task with earliest date", now.minusDays(1), "");
+            Task task2 = new Task(2, "Task with middle date", now, "");
+            Task task3 = new Task(3, "Task with latest date", now.plusDays(1), "");
+            Task task4 = new Task(4, "Task with no due date", null, "");
+            
+            List<Task> unsortedTasks = Arrays.asList(task1, task2, task3, task4);
+            
+            // When
+            List<Task> sortedTasks = taskService.getTasksSortedByDueDateAscending(unsortedTasks);
+            
+            // Then
+            assertEquals(4, sortedTasks.size());
+            assertEquals(task1, sortedTasks.get(0)); // Earliest should be first
+            assertEquals(task2, sortedTasks.get(1));
+            assertEquals(task3, sortedTasks.get(2));
+            assertEquals(task4, sortedTasks.get(3)); // Null date should be last
+        }
+        
+        @Test
+        @DisplayName("should sort tasks by due date in descending order")
+        void shouldSortTasksByDueDateDescending() {
+            // Given
+            LocalDateTime now = LocalDateTime.now();
+            Task task1 = new Task(1, "Task with earliest date", now.minusDays(1), "");
+            Task task2 = new Task(2, "Task with middle date", now, "");
+            Task task3 = new Task(3, "Task with latest date", now.plusDays(1), "");
+            Task task4 = new Task(4, "Task with no due date", null, "");
+            
+            List<Task> unsortedTasks = Arrays.asList(task3, task1, task4, task2);
+            
+            // When
+            List<Task> sortedTasks = taskService.getTasksSortedByDueDateDescending(unsortedTasks);
+            
+            // Then
+            assertEquals(4, sortedTasks.size());
+            
+            // Print the actual order for debugging
+            for (int i = 0; i < sortedTasks.size(); i++) {
+                Task task = sortedTasks.get(i);
+                System.out.println(String.format("%d: Task ID=%d, DueDate=%s", 
+                    i, task.getId(), task.getDueDate()));
+            }
+            
+            // With explicit handling in the comparator, the expected order is:
+            // 1. task3 (latest date)
+            // 2. task2 (middle date)
+            // 3. task1 (earliest date)
+            // 4. task4 (null date - explicitly placed last)
+            
+            // Test each ID individually to identify the failing one
+            int firstId = sortedTasks.get(0).getId();
+            assertEquals(3, firstId, "First task should be task3 (latest date)");
+            
+            int secondId = sortedTasks.get(1).getId();
+            assertEquals(2, secondId, "Second task should be task2 (middle date)");
+            
+            int thirdId = sortedTasks.get(2).getId();
+            assertEquals(1, thirdId, "Third task should be task1 (earliest date)");
+            
+            int fourthId = sortedTasks.get(3).getId();
+            assertEquals(4, fourthId, "Fourth task should be task4 (null date)");
+        }
+        
+        @Test
+        @DisplayName("should handle empty task list for sorting")
+        void shouldHandleEmptyTaskListForSorting() {
+            // Given
+            List<Task> emptyList = new ArrayList<>();
+            
+            // When
+            List<Task> sortedAscending = taskService.getTasksSortedByDueDateAscending(emptyList);
+            List<Task> sortedDescending = taskService.getTasksSortedByDueDateDescending(emptyList);
+            
+            // Then
+            assertTrue(sortedAscending.isEmpty());
+            assertTrue(sortedDescending.isEmpty());
         }
     }
 } 

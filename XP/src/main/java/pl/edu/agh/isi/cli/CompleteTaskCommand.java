@@ -39,8 +39,7 @@ public class CompleteTaskCommand implements Callable<Integer> {
                 return 0;
             }
             
-            TaskRepository repository = new TaskRepository(tasksFile);
-            TaskService service = new TaskService(repository);
+            TaskService service = createTaskService(tasksFile);
             
             if (service.getTask(id).isPresent()) {
                 Task task = service.markTaskAsCompleted(id, comment);
@@ -61,6 +60,12 @@ public class CompleteTaskCommand implements Callable<Integer> {
             e.printStackTrace();
             return 2;
         }
+    }
+    
+    // Protected method for better testability
+    protected TaskService createTaskService(File file) {
+        TaskRepository repository = new TaskRepository(file);
+        return new TaskService(repository);
     }
     
     private void showExamples() {

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import pl.edu.agh.isi.FamilyMember;
@@ -32,69 +33,45 @@ class FamilyMemberCommandsTest {
     @TempDir
     Path tempDir;
     
-    @Mock
-    FamilyMemberRepository repository;
-    
-    @Mock
-    FamilyMemberService service;
-    
     @Nested
     @DisplayName("Add Family Member Command")
     class AddFamilyMemberCommandTest {
         
         @Test
         @DisplayName("should add family member and display success message")
-        void shouldAddFamilyMemberAndDisplaySuccessMessage() {
+        void shouldAddFamilyMemberAndDisplaySuccessMessage() throws Exception {
             // Given
+            FamilyMemberService mockService = mock(FamilyMemberService.class);
+            
             String name = "John Smith";
             FamilyMember member = new FamilyMember(1, name);
             
-            // Create a custom AddFamilyMemberCommand that uses our mocked service
-            AddFamilyMemberCommand command = new AddFamilyMemberCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    FamilyMemberRepository repository = mock(FamilyMemberRepository.class);
-                    FamilyMemberService service = mock(FamilyMemberService.class);
-                    
-                    when(service.createFamilyMember(name)).thenReturn(member);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.name = name;
-                        this.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.createFamilyMember(name)).thenReturn(member);
+            
+            AddFamilyMemberCommand command = Mockito.spy(new AddFamilyMemberCommand());
+            doReturn(mockService).when(command).createFamilyMemberService(any());
+            command.name = name;
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 assertTrue(outContent.toString().contains("Family member added successfully with ID: 1"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).createFamilyMember(name);
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should show examples when help is requested")
-        void shouldShowExamplesWhenHelpIsRequested() {
+        void shouldShowExamplesWhenHelpIsRequested() throws Exception {
             // Given
             AddFamilyMemberCommand command = new AddFamilyMemberCommand();
             command.helpRequested = true;
@@ -106,16 +83,14 @@ class FamilyMemberCommandsTest {
             
             try {
                 command.call();
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                
+                // Then
+                String output = outContent.toString();
+                assertTrue(output.contains("Usage: add-member"));
+                assertTrue(output.contains("Examples:"));
             } finally {
                 System.setOut(originalOut);
             }
-            
-            // Then
-            String output = outContent.toString();
-            assertTrue(output.contains("Usage: add-member"));
-            assertTrue(output.contains("Examples:"));
         }
     }
     
@@ -125,100 +100,66 @@ class FamilyMemberCommandsTest {
         
         @Test
         @DisplayName("should remove family member when ID exists")
-        void shouldRemoveFamilyMemberWhenIdExists() {
+        void shouldRemoveFamilyMemberWhenIdExists() throws Exception {
             // Given
+            FamilyMemberService mockService = mock(FamilyMemberService.class);
+            
             String id = "1";
             FamilyMember member = new FamilyMember(1, "John Smith");
             
-            // Create a custom RemoveFamilyMemberCommand that uses our mocked service
-            RemoveFamilyMemberCommand command = new RemoveFamilyMemberCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    FamilyMemberRepository repository = mock(FamilyMemberRepository.class);
-                    FamilyMemberService service = mock(FamilyMemberService.class);
-                    
-                    when(service.getFamilyMember(id)).thenReturn(Optional.of(member));
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.id = id;
-                        this.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getFamilyMember(id)).thenReturn(Optional.of(member));
+            
+            RemoveFamilyMemberCommand command = Mockito.spy(new RemoveFamilyMemberCommand());
+            doReturn(mockService).when(command).createFamilyMemberService(any());
+            command.id = id;
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 assertTrue(outContent.toString().contains("Family member with ID 1 was successfully removed"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getFamilyMember(id);
+                verify(mockService).deleteFamilyMember(id);
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should show error when ID does not exist")
-        void shouldShowErrorWhenIdDoesNotExist() {
+        void shouldShowErrorWhenIdDoesNotExist() throws Exception {
             // Given
+            FamilyMemberService mockService = mock(FamilyMemberService.class);
+            
             String id = "999";
             
-            // Create a custom RemoveFamilyMemberCommand that uses our mocked service
-            RemoveFamilyMemberCommand command = new RemoveFamilyMemberCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    FamilyMemberRepository repository = mock(FamilyMemberRepository.class);
-                    FamilyMemberService service = mock(FamilyMemberService.class);
-                    
-                    when(service.getFamilyMember(id)).thenReturn(Optional.empty());
-                    
-                    // Capture standard error
-                    ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-                    PrintStream originalErr = System.err;
-                    System.setErr(new PrintStream(errContent));
-                    
-                    try {
-                        this.id = id;
-                        this.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setErr(originalErr);
-                    }
-                }
-            };
+            when(mockService.getFamilyMember(id)).thenReturn(Optional.empty());
+            
+            RemoveFamilyMemberCommand command = Mockito.spy(new RemoveFamilyMemberCommand());
+            doReturn(mockService).when(command).createFamilyMemberService(any());
+            command.id = id;
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
             
             // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
             try {
-                ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-                PrintStream originalErr = System.err;
-                System.setErr(new PrintStream(errContent));
-                
                 command.call();
-                
-                System.setErr(originalErr);
                 
                 // Then
                 assertTrue(errContent.toString().contains("Error: Family member with ID 999 not found"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getFamilyMember(id);
+                verify(mockService, never()).deleteFamilyMember(anyString());
+            } finally {
+                System.setErr(originalErr);
             }
         }
     }
@@ -229,46 +170,27 @@ class FamilyMemberCommandsTest {
         
         @Test
         @DisplayName("should list all family members")
-        void shouldListAllFamilyMembers() {
+        void shouldListAllFamilyMembers() throws Exception {
             // Given
+            FamilyMemberService mockService = mock(FamilyMemberService.class);
+            
             List<FamilyMember> members = new ArrayList<>();
             members.add(new FamilyMember(1, "John Smith"));
             members.add(new FamilyMember(2, "Jane Doe"));
             
-            // Create a custom ListFamilyMembersCommand that uses our mocked service
-            ListFamilyMembersCommand command = new ListFamilyMembersCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    FamilyMemberRepository repository = mock(FamilyMemberRepository.class);
-                    FamilyMemberService service = mock(FamilyMemberService.class);
-                    
-                    when(service.getAllFamilyMembers()).thenReturn(members);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getAllFamilyMembers()).thenReturn(members);
+            
+            ListFamilyMembersCommand command = Mockito.spy(new ListFamilyMembersCommand());
+            doReturn(mockService).when(command).createFamilyMemberService(any());
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 String output = outContent.toString();
@@ -276,56 +198,39 @@ class FamilyMemberCommandsTest {
                 assertTrue(output.contains("John Smith"));
                 assertTrue(output.contains("Jane Doe"));
                 assertTrue(output.contains("Total: 2 member(s)"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getAllFamilyMembers();
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should show message when no family members exist")
-        void shouldShowMessageWhenNoFamilyMembersExist() {
+        void shouldShowMessageWhenNoFamilyMembersExist() throws Exception {
             // Given
+            FamilyMemberService mockService = mock(FamilyMemberService.class);
+            
             List<FamilyMember> emptyList = new ArrayList<>();
             
-            // Create a custom ListFamilyMembersCommand that uses our mocked service
-            ListFamilyMembersCommand command = new ListFamilyMembersCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    FamilyMemberRepository repository = mock(FamilyMemberRepository.class);
-                    FamilyMemberService service = mock(FamilyMemberService.class);
-                    
-                    when(service.getAllFamilyMembers()).thenReturn(emptyList);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getAllFamilyMembers()).thenReturn(emptyList);
+            
+            ListFamilyMembersCommand command = Mockito.spy(new ListFamilyMembersCommand());
+            doReturn(mockService).when(command).createFamilyMemberService(any());
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 assertTrue(outContent.toString().contains("No family members found"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getAllFamilyMembers();
+            } finally {
+                System.setOut(originalOut);
             }
         }
     }

@@ -33,6 +33,12 @@ public class ListTasksCommand implements Callable<Integer> {
     
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help message")
     protected boolean helpRequested = false;
+    
+    @Option(names = {"-d", "--date-asc"}, description = "Sort tasks by due date (ascending)")
+    protected boolean sortAscending = false;
+    
+    @Option(names = {"-r", "--date-desc"}, description = "Sort tasks by due date (descending)")
+    protected boolean sortDescending = false;
 
     @Override
     public Integer call() throws Exception {
@@ -42,8 +48,7 @@ public class ListTasksCommand implements Callable<Integer> {
                 return 0;
             }
             
-            TaskRepository repository = new TaskRepository(tasksFile);
-            TaskService service = new TaskService(repository);
+            TaskService service = createTaskService(tasksFile);
             
             List<Task> tasks;
             if (showAll) {
@@ -52,6 +57,16 @@ public class ListTasksCommand implements Callable<Integer> {
                 tasks = service.getCompletedTasks();
             } else {
                 tasks = service.getActiveTasks();
+            }
+            
+            // Apply sorting if requested
+            if (sortAscending && sortDescending) {
+                System.err.println("Warning: Both ascending and descending sort options specified. Using ascending sort.");
+                tasks = service.getTasksSortedByDueDateAscending(tasks);
+            } else if (sortAscending) {
+                tasks = service.getTasksSortedByDueDateAscending(tasks);
+            } else if (sortDescending) {
+                tasks = service.getTasksSortedByDueDateDescending(tasks);
             }
             
             if (tasks.isEmpty()) {
@@ -68,20 +83,34 @@ public class ListTasksCommand implements Callable<Integer> {
                 heading = "Active Tasks";
             }
             
+            // Add sorting information to heading if applicable
+            if (sortAscending) {
+                heading += " (Sorted by due date, earliest first)";
+            } else if (sortDescending) {
+                heading += " (Sorted by due date, latest first)";
+            }
+            
             System.out.println(heading + ":");
-            System.out.println("--------------------------------------------------");
-            System.out.println("ID | Status | Topic");
-            System.out.println("--------------------------------------------------");
+            System.out.println("--------------------------------------------------------------------");
+            System.out.println("ID | Status | Due Date           | Topic");
+            System.out.println("--------------------------------------------------------------------");
             
             for (Task task : tasks) {
                 String status = task.isCompleted() ? "✓" : " ";
-                System.out.printf("%-2d | %-6s | %s%n", task.getId(), status, task.getTopic());
+                String dueDateStr = task.getDueDate() != null ? 
+                    task.getDueDate().format(DATE_FORMATTER) : "Not specified";
+                System.out.printf("%-2d | %-6s | %-18s | %s%n", 
+                    task.getId(), status, dueDateStr, task.getTopic());
             }
             
-            System.out.println("--------------------------------------------------");
+            System.out.println("--------------------------------------------------------------------");
             System.out.println("Total: " + tasks.size() + " task(s)");
             System.out.println();
-            System.out.println("Use 'list -a' to show all tasks, 'list -c' to show only completed tasks");
+            
+            // Show hint about sorting options
+            if (!(sortAscending || sortDescending)) {
+                System.out.println("Tip: Use -d to sort by due date (earliest first) or -r (latest first)");
+            }
             
             return 0;
         } catch (Exception e) {
@@ -92,16 +121,27 @@ public class ListTasksCommand implements Callable<Integer> {
     }
     
     private void showExamples() {
-        System.out.println("Usage: list [-a | -c]");
+        System.out.println("Usage: list [-a | -c] [-d | -r]");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  list          - List active (non-completed) tasks");
         System.out.println("  list -a       - List all tasks, including completed ones");
         System.out.println("  list -c       - List only completed tasks");
+        System.out.println("  list -d       - List active tasks sorted by due date (ascending)");
+        System.out.println("  list -r       - List active tasks sorted by due date (descending)");
+        System.out.println("  list -a -d    - List all tasks sorted by due date (ascending)");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  -a, --all                 Show all tasks including completed ones");
         System.out.println("  -c, --completed           Show only completed tasks");
+        System.out.println("  -d, --date-asc            Sort tasks by due date (ascending)");
+        System.out.println("  -r, --date-desc           Sort tasks by due date (descending)");
         System.out.println("  -h, --help                Show this help message");
+    }
+
+    // Protected method for better testability
+    protected TaskService createTaskService(File file) {
+        TaskRepository repository = new TaskRepository(file);
+        return new TaskService(repository);
     }
 } 

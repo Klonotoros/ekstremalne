@@ -36,8 +36,7 @@ public class ListFamilyMembersCommand implements Callable<Integer> {
                 return 0;
             }
             
-            FamilyMemberRepository repository = new FamilyMemberRepository(familyMembersFile);
-            FamilyMemberService service = new FamilyMemberService(repository);
+            FamilyMemberService service = createFamilyMemberService(familyMembersFile);
             
             List<FamilyMember> members = service.getAllFamilyMembers();
             
@@ -67,6 +66,12 @@ public class ListFamilyMembersCommand implements Callable<Integer> {
             e.printStackTrace();
             return 2;
         }
+    }
+    
+    // Protected method for better testability
+    protected FamilyMemberService createFamilyMemberService(File file) {
+        FamilyMemberRepository repository = new FamilyMemberRepository(file);
+        return new FamilyMemberService(repository);
     }
     
     private void showExamples() {

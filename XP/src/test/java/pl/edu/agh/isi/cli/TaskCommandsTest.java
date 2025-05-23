@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import pl.edu.agh.isi.Task;
@@ -16,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,158 +48,106 @@ class TaskCommandsTest {
         
         @Test
         @DisplayName("should complete task and display success message")
-        void shouldCompleteTaskAndDisplaySuccessMessage() {
+        void shouldCompleteTaskAndDisplaySuccessMessage() throws Exception {
             // Given
+            TaskService mockService = mock(TaskService.class);
+            
             String id = "1";
             Task task = new Task(1, "Clean basement", null, "");
             task.setCompleted(true);
             
-            // Create a custom CompleteTaskCommand that uses our mocked service
-            CompleteTaskCommand command = new CompleteTaskCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getTask(id)).thenReturn(Optional.of(task));
-                    when(service.markTaskAsCompleted(id, null)).thenReturn(task);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.id = id;
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getTask(id)).thenReturn(Optional.of(task));
+            when(mockService.markTaskAsCompleted(id, null)).thenReturn(task);
+            
+            CompleteTaskCommand command = Mockito.spy(new CompleteTaskCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.id = id;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 assertTrue(outContent.toString().contains("marked as completed"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getTask(id);
+                verify(mockService).markTaskAsCompleted(id, null);
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should complete task with comment")
-        void shouldCompleteTaskWithComment() {
+        void shouldCompleteTaskWithComment() throws Exception {
             // Given
+            TaskService mockService = mock(TaskService.class);
+            
             String id = "1";
             String comment = "Finished cleaning";
             Task task = new Task(1, "Clean basement", null, "");
             task.setCompleted(true);
             
-            // Create a custom CompleteTaskCommand that uses our mocked service
-            CompleteTaskCommand command = new CompleteTaskCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getTask(id)).thenReturn(Optional.of(task));
-                    when(service.markTaskAsCompleted(id, comment)).thenReturn(task);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.id = id;
-                        this.comment = comment;
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getTask(id)).thenReturn(Optional.of(task));
+            when(mockService.markTaskAsCompleted(id, comment)).thenReturn(task);
+            
+            CompleteTaskCommand command = Mockito.spy(new CompleteTaskCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.id = id;
+            command.comment = comment;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 String output = outContent.toString();
                 assertTrue(output.contains("marked as completed"));
                 assertTrue(output.contains("Added comment: " + comment));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getTask(id);
+                verify(mockService).markTaskAsCompleted(id, comment);
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should show error when task not found")
-        void shouldShowErrorWhenTaskNotFound() {
+        void shouldShowErrorWhenTaskNotFound() throws Exception {
             // Given
-            String id = "999";
+            TaskService mockService = mock(TaskService.class);
             
-            // Create a custom CompleteTaskCommand that uses our mocked service
-            CompleteTaskCommand command = new CompleteTaskCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getTask(id)).thenReturn(Optional.empty());
-                    
-                    // Capture standard error
-                    ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-                    PrintStream originalErr = System.err;
-                    System.setErr(new PrintStream(errContent));
-                    
-                    try {
-                        this.id = id;
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setErr(originalErr);
-                    }
-                }
-            };
+            String id = "999";
+            when(mockService.getTask(id)).thenReturn(Optional.empty());
+            
+            CompleteTaskCommand command = Mockito.spy(new CompleteTaskCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.id = id;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
             try {
-                ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-                PrintStream originalErr = System.err;
-                System.setErr(new PrintStream(errContent));
-                
                 command.call();
-                
-                System.setErr(originalErr);
                 
                 // Then
                 assertTrue(errContent.toString().contains("Task with ID 999 not found"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getTask(id);
+                verify(mockService, never()).markTaskAsCompleted(anyString(), anyString());
+            } finally {
+                System.setErr(originalErr);
             }
         }
     }
@@ -207,48 +158,29 @@ class TaskCommandsTest {
         
         @Test
         @DisplayName("should list active tasks by default")
-        void shouldListActiveTasksByDefault() {
+        void shouldListActiveTasksByDefault() throws Exception {
             // Given
-            List<Task> activeTasks = new ArrayList<>();
+            TaskService mockService = mock(TaskService.class);
+            
+            List<Task> tasks = new ArrayList<>();
             Task task1 = new Task(1, "Clean basement", null, "");
             Task task2 = new Task(2, "Wash dishes", null, "");
-            activeTasks.add(task1);
-            activeTasks.add(task2);
+            tasks.add(task1);
+            tasks.add(task2);
             
-            // Create a custom ListTasksCommand that uses our mocked service
-            ListTasksCommand command = new ListTasksCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getActiveTasks()).thenReturn(activeTasks);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getActiveTasks()).thenReturn(tasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 String output = outContent.toString();
@@ -256,15 +188,18 @@ class TaskCommandsTest {
                 assertTrue(output.contains("Clean basement"));
                 assertTrue(output.contains("Wash dishes"));
                 assertTrue(output.contains("Total: 2 task(s)"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getActiveTasks();
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should list all tasks when requested")
-        void shouldListAllTasksWhenRequested() {
+        void shouldListAllTasksWhenRequested() throws Exception {
             // Given
+            TaskService mockService = mock(TaskService.class);
+            
             List<Task> allTasks = new ArrayList<>();
             Task task1 = new Task(1, "Clean basement", null, "");
             Task task2 = new Task(2, "Wash dishes", null, "");
@@ -272,41 +207,20 @@ class TaskCommandsTest {
             allTasks.add(task1);
             allTasks.add(task2);
             
-            // Create a custom ListTasksCommand that uses our mocked service
-            ListTasksCommand command = new ListTasksCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getAllTasks()).thenReturn(allTasks);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.showAll = true;
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getAllTasks()).thenReturn(allTasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.showAll = true;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 String output = outContent.toString();
@@ -314,111 +228,207 @@ class TaskCommandsTest {
                 assertTrue(output.contains("Clean basement"));
                 assertTrue(output.contains("Wash dishes"));
                 assertTrue(output.contains("Total: 2 task(s)"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getAllTasks();
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should list only completed tasks when requested")
-        void shouldListOnlyCompletedTasksWhenRequested() {
+        void shouldListOnlyCompletedTasksWhenRequested() throws Exception {
             // Given
+            TaskService mockService = mock(TaskService.class);
+            
             List<Task> completedTasks = new ArrayList<>();
             Task task = new Task(2, "Wash dishes", null, "");
             task.setCompleted(true);
             completedTasks.add(task);
             
-            // Create a custom ListTasksCommand that uses our mocked service
-            ListTasksCommand command = new ListTasksCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getCompletedTasks()).thenReturn(completedTasks);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.showOnlyCompleted = true;
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            when(mockService.getCompletedTasks()).thenReturn(completedTasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.showOnlyCompleted = true;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 String output = outContent.toString();
                 assertTrue(output.contains("Completed Tasks"));
                 assertTrue(output.contains("Wash dishes"));
                 assertTrue(output.contains("Total: 1 task(s)"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getCompletedTasks();
+            } finally {
+                System.setOut(originalOut);
             }
         }
         
         @Test
         @DisplayName("should show message when no tasks found")
-        void shouldShowMessageWhenNoTasksFound() {
+        void shouldShowMessageWhenNoTasksFound() throws Exception {
             // Given
-            List<Task> emptyList = new ArrayList<>();
+            TaskService mockService = mock(TaskService.class);
             
-            // Create a custom ListTasksCommand that uses our mocked service
-            ListTasksCommand command = new ListTasksCommand() {
-                @Override
-                public Integer call() throws Exception {
-                    TaskRepository repository = mock(TaskRepository.class);
-                    TaskService service = mock(TaskService.class);
-                    
-                    when(service.getActiveTasks()).thenReturn(emptyList);
-                    
-                    // Capture standard output
-                    ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                    PrintStream originalOut = System.out;
-                    System.setOut(new PrintStream(outContent));
-                    
-                    try {
-                        this.tasksFile = tempDir.resolve("test_tasks.json").toFile();
-                        
-                        // Replace actual repository creation with our mock
-                        return super.call();
-                    } finally {
-                        System.setOut(originalOut);
-                    }
-                }
-            };
+            List<Task> emptyList = new ArrayList<>();
+            when(mockService.getActiveTasks()).thenReturn(emptyList);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
             try {
-                ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-                PrintStream originalOut = System.out;
-                System.setOut(new PrintStream(outContent));
-                
                 command.call();
-                
-                System.setOut(originalOut);
                 
                 // Then
                 assertTrue(outContent.toString().contains("No tasks found"));
-            } catch (Exception e) {
-                fail("Exception should not be thrown: " + e.getMessage());
+                verify(mockService).getActiveTasks();
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+        
+        @Test
+        @DisplayName("should sort tasks by due date ascending when requested")
+        void shouldSortTasksByDueDateAscendingWhenRequested() throws Exception {
+            // Given
+            TaskService mockService = mock(TaskService.class);
+            
+            List<Task> tasks = new ArrayList<>();
+            Task task1 = new Task(1, "Clean basement", LocalDateTime.now().plusDays(2), "");
+            Task task2 = new Task(2, "Wash dishes", LocalDateTime.now().plusDays(1), "");
+            tasks.add(task1);
+            tasks.add(task2);
+            
+            List<Task> sortedTasks = new ArrayList<>();
+            sortedTasks.add(task2); // Due date earlier
+            sortedTasks.add(task1); // Due date later
+            
+            when(mockService.getActiveTasks()).thenReturn(tasks);
+            when(mockService.getTasksSortedByDueDateAscending(tasks)).thenReturn(sortedTasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.sortAscending = true;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            
+            // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String output = outContent.toString();
+                assertTrue(output.contains("Active Tasks (Sorted by due date, earliest first)"));
+                verify(mockService).getActiveTasks();
+                verify(mockService).getTasksSortedByDueDateAscending(tasks);
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+        
+        @Test
+        @DisplayName("should sort tasks by due date descending when requested")
+        void shouldSortTasksByDueDateDescendingWhenRequested() throws Exception {
+            // Given
+            TaskService mockService = mock(TaskService.class);
+            
+            List<Task> tasks = new ArrayList<>();
+            Task task1 = new Task(1, "Clean basement", LocalDateTime.now().plusDays(1), "");
+            Task task2 = new Task(2, "Wash dishes", LocalDateTime.now().plusDays(2), "");
+            tasks.add(task1);
+            tasks.add(task2);
+            
+            List<Task> sortedTasks = new ArrayList<>();
+            sortedTasks.add(task2); // Due date later
+            sortedTasks.add(task1); // Due date earlier
+            
+            when(mockService.getActiveTasks()).thenReturn(tasks);
+            when(mockService.getTasksSortedByDueDateDescending(tasks)).thenReturn(sortedTasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.sortDescending = true;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            
+            // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String output = outContent.toString();
+                assertTrue(output.contains("Active Tasks (Sorted by due date, latest first)"));
+                verify(mockService).getActiveTasks();
+                verify(mockService).getTasksSortedByDueDateDescending(tasks);
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+        
+        @Test
+        @DisplayName("should prioritize ascending when both sort options specified")
+        void shouldPrioritizeAscendingWhenBothSortOptionsSpecified() throws Exception {
+            // Given
+            TaskService mockService = mock(TaskService.class);
+            
+            List<Task> tasks = new ArrayList<>();
+            Task task1 = new Task(1, "Clean basement", LocalDateTime.now().plusDays(2), "");
+            Task task2 = new Task(2, "Wash dishes", LocalDateTime.now().plusDays(1), "");
+            tasks.add(task1);
+            tasks.add(task2);
+            
+            List<Task> sortedTasks = new ArrayList<>();
+            sortedTasks.add(task2); // Due date earlier
+            sortedTasks.add(task1); // Due date later
+            
+            when(mockService.getActiveTasks()).thenReturn(tasks);
+            when(mockService.getTasksSortedByDueDateAscending(tasks)).thenReturn(sortedTasks);
+            
+            ListTasksCommand command = Mockito.spy(new ListTasksCommand());
+            doReturn(mockService).when(command).createTaskService(any());
+            command.sortAscending = true;
+            command.sortDescending = true;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            
+            // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                assertTrue(errContent.toString().contains("Warning: Both ascending and descending sort options specified"));
+                verify(mockService).getActiveTasks();
+                verify(mockService).getTasksSortedByDueDateAscending(tasks);
+                verify(mockService, never()).getTasksSortedByDueDateDescending(any());
+            } finally {
+                System.setOut(originalOut);
+                System.setErr(originalErr);
             }
         }
     }

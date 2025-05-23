@@ -39,8 +39,7 @@ public class ReopenTaskCommand implements Callable<Integer> {
                 return 0;
             }
             
-            TaskRepository repository = new TaskRepository(tasksFile);
-            TaskService service = new TaskService(repository);
+            TaskService service = createTaskService(tasksFile);
             
             if (service.getTask(id).isPresent()) {
                 Task task = service.getTask(id).get();
@@ -80,5 +79,11 @@ public class ReopenTaskCommand implements Callable<Integer> {
         System.out.println("Options:");
         System.out.println("  -c, --comment \"text\"                    Add a reopening comment");
         System.out.println("  -h, --help                               Show this help message");
+    }
+    
+    // Protected method for better testability
+    protected TaskService createTaskService(File file) {
+        TaskRepository repository = new TaskRepository(file);
+        return new TaskService(repository);
     }
 } 

@@ -1,6 +1,7 @@
 package pl.edu.agh.isi;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,6 +42,38 @@ public class TaskService {
     public List<Task> getCompletedTasks() {
         return taskRepository.findAll().stream()
                 .filter(Task::isCompleted)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns tasks sorted by due date in descending order (latest first)
+     */
+    public List<Task> getTasksSortedByDueDateDescending(List<Task> tasks) {
+        return tasks.stream()
+                .sorted((task1, task2) -> {
+                    // Handle null values explicitly
+                    if (task1.getDueDate() == null && task2.getDueDate() == null) {
+                        return 0;
+                    }
+                    if (task1.getDueDate() == null) {
+                        return 1; // Null values should be last
+                    }
+                    if (task2.getDueDate() == null) {
+                        return -1; // Null values should be last
+                    }
+                    // For non-null values, compare in descending order
+                    return task2.getDueDate().compareTo(task1.getDueDate());
+                })
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns tasks sorted by due date in ascending order (earliest first)
+     */
+    public List<Task> getTasksSortedByDueDateAscending(List<Task> tasks) {
+        return tasks.stream()
+                .sorted(Comparator.comparing(Task::getDueDate, 
+                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
 
