@@ -14,6 +14,7 @@ import pl.edu.agh.isi.cli.AssignTaskCommand;
 import pl.edu.agh.isi.cli.UnassignTaskCommand;
 import pl.edu.agh.isi.cli.SetPriorityCommand;
 import pl.edu.agh.isi.cli.SetRecurringCommand;
+import pl.edu.agh.isi.cli.ConfigCommand;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -34,7 +35,8 @@ import java.io.File;
         AssignTaskCommand.class,
         UnassignTaskCommand.class,
         SetPriorityCommand.class,
-        SetRecurringCommand.class
+        SetRecurringCommand.class,
+        ConfigCommand.class
     },
     mixinStandardHelpOptions = false,
     versionProvider = Main.VersionProvider.class
@@ -48,6 +50,9 @@ public class Main implements Runnable {
     private boolean helpRequested = false;
     
     public static void main(String[] args) {
+        // Initialize configuration
+        AppConfig.getInstance();
+        
         Main main = new Main();
         CommandLine cmd = new CommandLine(main);
         cmd.setHelpFactory(new CustomHelpFactory());
@@ -83,27 +88,33 @@ public class Main implements Runnable {
         System.out.println("  add-member \"Name\"                                               - Add a new family member");
         System.out.println("  remove-member ID                                                - Remove a family member");
         System.out.println("  list-members                                                    - List all family members");
+        System.out.println("  config [-s] [-r] [-t PATH] [-m PATH]                            - View or modify configuration");
         System.out.println("  help                                                            - Show available commands");
         System.out.println("  exit                                                            - Quit the application");
         System.out.println();
         
-        File tasksFile = new File("tasks.json");
+        // Get configuration
+        AppConfig config = AppConfig.getInstance();
+        
+        // Get task and family member files from configuration
+        File tasksFile = config.getTasksFile();
+        File familyMembersFile = config.getFamilyMembersFile();
+        
         if (!tasksFile.exists()) {
             try {
                 tasksFile.createNewFile();
-                System.out.println("Created new tasks.json file");
+                System.out.println("Created new tasks file: " + tasksFile.getPath());
             } catch (IOException e) {
-                System.err.println("Warning: Could not create tasks.json file: " + e.getMessage());
+                System.err.println("Warning: Could not create tasks file: " + e.getMessage());
             }
         }
         
-        File familyMembersFile = new File("family_members.json");
         if (!familyMembersFile.exists()) {
             try {
                 familyMembersFile.createNewFile();
-                System.out.println("Created new family_members.json file");
+                System.out.println("Created new family members file: " + familyMembersFile.getPath());
             } catch (IOException e) {
-                System.err.println("Warning: Could not create family_members.json file: " + e.getMessage());
+                System.err.println("Warning: Could not create family members file: " + e.getMessage());
             }
         }
         
@@ -139,6 +150,7 @@ public class Main implements Runnable {
                     System.out.println("  add-member \"Name\"                                               - Add a new family member");
                     System.out.println("  remove-member ID                                                - Remove a family member");
                     System.out.println("  list-members                                                    - List all family members");
+                    System.out.println("  config [-s] [-r] [-t PATH] [-m PATH]                            - View or modify configuration");
                     System.out.println("  help                                                            - Show this help message");
                     System.out.println("  exit                                                            - Quit the application");
                     System.out.println();
@@ -157,6 +169,7 @@ public class Main implements Runnable {
                     System.out.println("  add-member \"John Smith\"                       - Add John as a family member");
                     System.out.println("  remove-member 1                               - Remove family member with ID 1");
                     System.out.println("  list-members                                  - List all family members");
+                    System.out.println("  config -t data/tasks.json -m data/members.json -s - Set paths and save config");
                 } else if (!input.isEmpty()) {
                     String[] cmdArgs = parseCommandLine(input);
                     cmd.execute(cmdArgs);
