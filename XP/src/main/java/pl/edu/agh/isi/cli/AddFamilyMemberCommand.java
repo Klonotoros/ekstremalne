@@ -14,22 +14,22 @@ import pl.edu.agh.isi.FamilyMemberService;
 
 @Command(
     name = "add-member",
-    description = "Add a new family member",
+    description = "Add a family member",
     mixinStandardHelpOptions = false
 )
 public class AddFamilyMemberCommand implements Callable<Integer> {
     
     @Parameters(index = "0", description = "Family member name", arity = "1")
-    private String name;
+    protected String name;
     
     @Option(names = {"-f", "--file"}, description = "Family members data file", defaultValue = "family_members.json", hidden = true)
-    private File familyMembersFile;
+    protected File familyMembersFile;
     
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help message")
-    private boolean helpRequested = false;
+    protected boolean helpRequested = false;
 
     @Override
-    public Integer call() {
+    public Integer call() throws Exception {
         try {
             if (helpRequested) {
                 showExamples();
@@ -53,11 +53,10 @@ public class AddFamilyMemberCommand implements Callable<Integer> {
     }
     
     private void showExamples() {
-        System.out.println("Usage: add-member \"Family Member Name\"");
+        System.out.println("Usage: add-member \"Name\"");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  add-member \"John Smith\"        - Add John Smith as a family member");
-        System.out.println("  add-member \"Anna Kowalska\"     - Add Anna Kowalska as a family member");
+        System.out.println("  add-member \"John Smith\"       - Add John as a family member");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  -h, --help                   Show this help message");

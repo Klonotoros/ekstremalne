@@ -7,12 +7,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Task Service")
 class TaskServiceTest {
     
     @Mock
@@ -183,5 +189,260 @@ class TaskServiceTest {
             taskService.createTask(emptyTopic, dueDate, description);
         });
         verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Nested
+    @DisplayName("Task Completion")
+    class TaskCompletion {
+
+        @Test
+        @DisplayName("should mark task as completed")
+        void shouldMarkTaskAsCompleted() {
+            // Given
+            int taskId = 1;
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setCompleted(false);
+            
+            Task updatedTask = new Task(taskId, "Clean basement", null, "");
+            updatedTask.setCompleted(true);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(taskRepository.update(any(Task.class))).thenReturn(updatedTask);
+
+            // When
+            Task result = taskService.markTaskAsCompleted(taskId, null);
+
+            // Then
+            assertTrue(result.isCompleted());
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository).update(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should mark task as completed with comment")
+        void shouldMarkTaskAsCompletedWithComment() {
+            // Given
+            int taskId = 1;
+            String commentText = "Finished cleaning";
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setCompleted(false);
+            
+            ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(taskRepository.update(taskCaptor.capture())).thenAnswer(invocation -> {
+                Task capturedTask = taskCaptor.getValue();
+                return capturedTask;
+            });
+
+            // When
+            Task result = taskService.markTaskAsCompleted(taskId, commentText);
+
+            // Then
+            assertTrue(result.isCompleted());
+            assertEquals(1, result.getComments().size());
+            assertEquals(commentText, result.getComments().get(0).getContent());
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository).update(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should throw exception when task not found")
+        void shouldThrowExceptionWhenTaskNotFound() {
+            // Given
+            int taskId = 999;
+            when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.markTaskAsCompleted(taskId, null));
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository, never()).update(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should handle string ID")
+        void shouldHandleStringId() {
+            // Given
+            String stringId = "1";
+            int taskId = 1;
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setCompleted(false);
+            
+            Task updatedTask = new Task(taskId, "Clean basement", null, "");
+            updatedTask.setCompleted(true);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(taskRepository.update(any(Task.class))).thenReturn(updatedTask);
+
+            // When
+            Task result = taskService.markTaskAsCompleted(stringId, null);
+
+            // Then
+            assertTrue(result.isCompleted());
+        }
+
+        @Test
+        @DisplayName("should throw exception for invalid string ID")
+        void shouldThrowExceptionForInvalidStringId() {
+            // Given
+            String invalidId = "abc";
+
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.markTaskAsCompleted(invalidId, null));
+            verifyNoInteractions(taskRepository);
+        }
+    }
+
+    @Nested
+    @DisplayName("Task Reopening")
+    class TaskReopening {
+
+        @Test
+        @DisplayName("should reopen completed task")
+        void shouldReopenCompletedTask() {
+            // Given
+            int taskId = 1;
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setCompleted(true);
+            
+            Task updatedTask = new Task(taskId, "Clean basement", null, "");
+            updatedTask.setCompleted(false);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(taskRepository.update(any(Task.class))).thenReturn(updatedTask);
+
+            // When
+            Task result = taskService.reopenTask(taskId, null);
+
+            // Then
+            assertFalse(result.isCompleted());
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository).update(any(Task.class));
+        }
+
+        @Test
+        @DisplayName("should reopen task with comment")
+        void shouldReopenTaskWithComment() {
+            // Given
+            int taskId = 1;
+            String commentText = "Need to do again";
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setCompleted(true);
+            
+            ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(taskRepository.update(taskCaptor.capture())).thenAnswer(invocation -> {
+                Task capturedTask = taskCaptor.getValue();
+                return capturedTask;
+            });
+
+            // When
+            Task result = taskService.reopenTask(taskId, commentText);
+
+            // Then
+            assertFalse(result.isCompleted());
+            assertEquals(1, result.getComments().size());
+            assertEquals(commentText, result.getComments().get(0).getContent());
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository).update(any(Task.class));
+        }
+    }
+    
+    @Nested
+    @DisplayName("Task Filtering")
+    class TaskFiltering {
+
+        @Test
+        @DisplayName("should return all active tasks")
+        void shouldReturnAllActiveTasks() {
+            // Given
+            Task task1 = new Task(1, "Clean basement", null, "");
+            task1.setCompleted(false);
+            
+            Task task2 = new Task(2, "Clean kitchen", null, "");
+            task2.setCompleted(true);
+            
+            Task task3 = new Task(3, "Wash dishes", null, "");
+            task3.setCompleted(false);
+            
+            List<Task> allTasks = Arrays.asList(task1, task2, task3);
+            when(taskRepository.findAll()).thenReturn(allTasks);
+
+            // When
+            List<Task> activeTasks = taskService.getActiveTasks();
+
+            // Then
+            assertEquals(2, activeTasks.size());
+            assertTrue(activeTasks.contains(task1));
+            assertTrue(activeTasks.contains(task3));
+            assertFalse(activeTasks.contains(task2));
+        }
+
+        @Test
+        @DisplayName("should return all completed tasks")
+        void shouldReturnAllCompletedTasks() {
+            // Given
+            Task task1 = new Task(1, "Clean basement", null, "");
+            task1.setCompleted(false);
+            
+            Task task2 = new Task(2, "Clean kitchen", null, "");
+            task2.setCompleted(true);
+            
+            Task task3 = new Task(3, "Wash dishes", null, "");
+            task3.setCompleted(false);
+            
+            List<Task> allTasks = Arrays.asList(task1, task2, task3);
+            when(taskRepository.findAll()).thenReturn(allTasks);
+
+            // When
+            List<Task> completedTasks = taskService.getCompletedTasks();
+
+            // Then
+            assertEquals(1, completedTasks.size());
+            assertTrue(completedTasks.contains(task2));
+            assertFalse(completedTasks.contains(task1));
+            assertFalse(completedTasks.contains(task3));
+        }
+
+        @Test
+        @DisplayName("should return empty list when no active tasks exist")
+        void shouldReturnEmptyListWhenNoActiveTasksExist() {
+            // Given
+            Task task1 = new Task(1, "Clean basement", null, "");
+            task1.setCompleted(true);
+            
+            Task task2 = new Task(2, "Clean kitchen", null, "");
+            task2.setCompleted(true);
+            
+            List<Task> allTasks = Arrays.asList(task1, task2);
+            when(taskRepository.findAll()).thenReturn(allTasks);
+
+            // When
+            List<Task> activeTasks = taskService.getActiveTasks();
+
+            // Then
+            assertTrue(activeTasks.isEmpty());
+        }
+
+        @Test
+        @DisplayName("should return empty list when no completed tasks exist")
+        void shouldReturnEmptyListWhenNoCompletedTasksExist() {
+            // Given
+            Task task1 = new Task(1, "Clean basement", null, "");
+            task1.setCompleted(false);
+            
+            Task task2 = new Task(2, "Clean kitchen", null, "");
+            task2.setCompleted(false);
+            
+            List<Task> allTasks = Arrays.asList(task1, task2);
+            when(taskRepository.findAll()).thenReturn(allTasks);
+
+            // When
+            List<Task> completedTasks = taskService.getCompletedTasks();
+
+            // Then
+            assertTrue(completedTasks.isEmpty());
+        }
     }
 } 

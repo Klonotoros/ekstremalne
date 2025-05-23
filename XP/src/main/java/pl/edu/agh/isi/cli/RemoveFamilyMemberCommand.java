@@ -8,6 +8,7 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.util.concurrent.Callable;
 
+import pl.edu.agh.isi.FamilyMember;
 import pl.edu.agh.isi.FamilyMemberRepository;
 import pl.edu.agh.isi.FamilyMemberService;
 
@@ -19,16 +20,16 @@ import pl.edu.agh.isi.FamilyMemberService;
 public class RemoveFamilyMemberCommand implements Callable<Integer> {
     
     @Parameters(index = "0", description = "Family member ID", arity = "1")
-    private String id;
+    protected String id;
     
     @Option(names = {"-f", "--file"}, description = "Family members data file", defaultValue = "family_members.json", hidden = true)
-    private File familyMembersFile;
+    protected File familyMembersFile;
     
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help message")
-    private boolean helpRequested = false;
+    protected boolean helpRequested = false;
 
     @Override
-    public Integer call() {
+    public Integer call() throws Exception {
         try {
             if (helpRequested) {
                 showExamples();
@@ -39,6 +40,7 @@ public class RemoveFamilyMemberCommand implements Callable<Integer> {
             FamilyMemberService service = new FamilyMemberService(repository);
             
             if (service.getFamilyMember(id).isPresent()) {
+                FamilyMember member = service.getFamilyMember(id).get();
                 service.deleteFamilyMember(id);
                 System.out.println("Family member with ID " + id + " was successfully removed");
                 return 0;
@@ -60,10 +62,9 @@ public class RemoveFamilyMemberCommand implements Callable<Integer> {
         System.out.println("Usage: remove-member ID");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  remove-member 1      - Remove family member with ID 1");
-        System.out.println("  remove-member 2      - Remove family member with ID 2");
+        System.out.println("  remove-member 1       - Remove family member with ID 1");
         System.out.println();
         System.out.println("Options:");
-        System.out.println("  -h, --help           Show this help message");
+        System.out.println("  -h, --help            Show this help message");
     }
 } 

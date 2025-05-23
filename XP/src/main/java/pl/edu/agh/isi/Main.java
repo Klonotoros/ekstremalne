@@ -7,6 +7,9 @@ import pl.edu.agh.isi.cli.CreateTaskCommand;
 import pl.edu.agh.isi.cli.AddFamilyMemberCommand;
 import pl.edu.agh.isi.cli.RemoveFamilyMemberCommand;
 import pl.edu.agh.isi.cli.ListFamilyMembersCommand;
+import pl.edu.agh.isi.cli.CompleteTaskCommand;
+import pl.edu.agh.isi.cli.ReopenTaskCommand;
+import pl.edu.agh.isi.cli.ListTasksCommand;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -18,6 +21,9 @@ import java.io.File;
     description = "Household Task Management Application",
     subcommands = {
         CreateTaskCommand.class,
+        CompleteTaskCommand.class,
+        ReopenTaskCommand.class,
+        ListTasksCommand.class,
         AddFamilyMemberCommand.class,
         RemoveFamilyMemberCommand.class,
         ListFamilyMembersCommand.class
@@ -59,6 +65,9 @@ public class Main implements Runnable {
         System.out.println("Welcome to Household Task Management Application!");
         System.out.println("Available commands:");
         System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
+        System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
+        System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
+        System.out.println("  list [-a | -c]                                                 - List tasks");
         System.out.println("  add-member \"Name\"                                               - Add a new family member");
         System.out.println("  remove-member ID                                                - Remove a family member");
         System.out.println("  list-members                                                    - List all family members");
@@ -108,6 +117,9 @@ public class Main implements Runnable {
                 } else if (input.equalsIgnoreCase("help")) {
                     System.out.println("Available commands:");
                     System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
+                    System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
+                    System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
+                    System.out.println("  list [-a | -c]                                                 - List tasks");
                     System.out.println("  add-member \"Name\"                                               - Add a new family member");
                     System.out.println("  remove-member ID                                                - Remove a family member");
                     System.out.println("  list-members                                                    - List all family members");
@@ -116,7 +128,8 @@ public class Main implements Runnable {
                     System.out.println();
                     System.out.println("Examples:");
                     System.out.println("  create \"Clean kitchen\"                       - Create a simple task");
-                    System.out.println("  create \"Buy groceries\" -d \"2024-12-30 18:00\" - Create a task with due date");
+                    System.out.println("  complete 1 -c \"Cleaned thoroughly\"            - Mark task as completed with comment");
+                    System.out.println("  list                                          - List active tasks");
                     System.out.println("  add-member \"John Smith\"                       - Add John as a family member");
                     System.out.println("  remove-member 1                               - Remove family member with ID 1");
                     System.out.println("  list-members                                  - List all family members");
