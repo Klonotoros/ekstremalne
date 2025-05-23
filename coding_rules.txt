@@ -1,0 +1,34 @@
+Zasady kodowania w projekcie
+
+1. Ogólne wytyczne  
+Kod powinien być pisany w sposób czytelny i zrozumiały dla wszystkich członków zespołu.
+
+2. Formatowanie kodu  
+- Wcięcia: 4 spacje. 
+- Nawiasy klamrowe: Otwierający nawias klamrowy `{` umieszczamy w tej samej linii co deklaracja, a zamykający `}` w nowej linii.  
+- Długość linii: Staramy się, aby linie kodu nie przekraczały 100 znaków. Jeśli linia jest zbyt długa, dzielimy ją na kilka linii.  
+- Puste linie: Dodajemy jedną pustą linię między metodami i większymi blokami kodu, aby poprawić czytelność. 
+
+3. Nazewnictwo  
+- Język: Kod (nazwy zmiennych, klas, metod) oraz komentarze piszemy w języku angielskim. 
+- Klasy: Używamy formatu PascalCase, np. `UserAccount`, `OrderService`.  
+- Metody i zmienne: Stosujemy camelCase, np. `calculateTotal`, `userName`.  
+- Stałe: Nazwy stałych zapisujemy wielkimi literami, używając podkreśleń, np. `MAX_VALUE`, `DEFAULT_TIMEOUT`.  
+- Pakiety: Nazwy pakietów zapisujemy małymi literami, np. `com.project.module`.  
+- Pliki: Każda klasa powinna znajdować się w osobnym pliku o nazwie odpowiadającej nazwie klasy, np. klasa `UserAccount` w pliku `UserAccount.java`.
+
+4. Struktura projektu  
+Kod powinien być podzielony na pakiety zgodnie z jego przeznaczeniem. Przykładowa struktura:  
+```
+com.project
+    ├── model
+    ├── service
+    ├── controller
+    ├── view
+```
+Każda klasa powinna znajdować się w osobnym pliku. Klasy pomocnicze, które są używane wyłącznie przez jedną klasę, mogą być umieszczone w tym samym pliku.
+
+5. Komentarze  
+- Komentarze w kodzie powinny być krótkie i zwięzłe. Wyjaśniamy w nich dlaczego coś zostało zrobione, a nie co robi kod.  
+- Komentarze piszemy w języku angielskim.  
+- Każda publiczna klasa i metoda powinna być udokumentowana za pomocą Javadoc. Dokumentacja powinna zawierać opis funkcji oraz parametry i zwracane wartości.
