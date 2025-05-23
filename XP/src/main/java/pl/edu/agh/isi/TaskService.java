@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 public class TaskService {
     private final TaskRepository taskRepository;
     private FamilyMemberService familyMemberService;
+    private RecurringTaskService recurringTaskService;
 
     public TaskService(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
@@ -19,8 +20,19 @@ public class TaskService {
         this.familyMemberService = familyMemberService;
     }
     
+    public TaskService(TaskRepository taskRepository, FamilyMemberService familyMemberService, 
+            RecurringTaskService recurringTaskService) {
+        this.taskRepository = taskRepository;
+        this.familyMemberService = familyMemberService;
+        this.recurringTaskService = recurringTaskService;
+    }
+    
     public void setFamilyMemberService(FamilyMemberService familyMemberService) {
         this.familyMemberService = familyMemberService;
+    }
+    
+    public void setRecurringTaskService(RecurringTaskService recurringTaskService) {
+        this.recurringTaskService = recurringTaskService;
     }
 
     public Task createTask(String topic, LocalDateTime dueDate, String description) {
@@ -41,6 +53,40 @@ public class TaskService {
     
     public Task createTask(String topic, LocalDateTime dueDate, String description, int priorityLevel) {
         return createTask(topic, dueDate, description, TaskPriority.fromLevel(priorityLevel));
+    }
+    
+    /**
+     * Create a recurring task
+     */
+    public Task createRecurringTask(String topic, LocalDateTime dueDate, String description, 
+            TaskPriority priority, RecurrenceConfig recurrenceConfig) {
+        if (recurringTaskService == null) {
+            throw new IllegalStateException("RecurringTaskService is not set");
+        }
+        
+        return recurringTaskService.createRecurringTask(topic, dueDate, description, priority, recurrenceConfig);
+    }
+    
+    /**
+     * Set a task as recurring
+     */
+    public Task setTaskAsRecurring(int taskId, RecurrenceConfig recurrenceConfig) {
+        if (recurringTaskService == null) {
+            throw new IllegalStateException("RecurringTaskService is not set");
+        }
+        
+        return recurringTaskService.setTaskAsRecurring(taskId, recurrenceConfig);
+    }
+    
+    /**
+     * Set a task as recurring using string ID
+     */
+    public Task setTaskAsRecurring(String taskId, RecurrenceConfig recurrenceConfig) {
+        if (recurringTaskService == null) {
+            throw new IllegalStateException("RecurringTaskService is not set");
+        }
+        
+        return recurringTaskService.setTaskAsRecurring(taskId, recurrenceConfig);
     }
 
     public Optional<Task> getTask(int id) {
@@ -125,6 +171,35 @@ public class TaskService {
     public List<Task> getTasksByPriorityLevel(int priorityLevel) {
         return getTasksByPriority(TaskPriority.fromLevel(priorityLevel));
     }
+    
+    /**
+     * Returns recurring tasks
+     */
+    public List<Task> getRecurringTasks() {
+        return taskRepository.findAll().stream()
+                .filter(Task::isRecurring)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns recurrence instances (tasks that are part of a recurring sequence)
+     */
+    public List<Task> getRecurrenceInstances() {
+        return taskRepository.findAll().stream()
+                .filter(Task::isRecurrenceInstance)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns recurrence instances for a specific parent task
+     */
+    public List<Task> getRecurrenceInstancesForParent(int parentTaskId) {
+        return taskRepository.findAll().stream()
+                .filter(task -> task.isRecurrenceInstance() && 
+                       task.getParentTaskId() != null && 
+                       task.getParentTaskId() == parentTaskId)
+                .collect(Collectors.toList());
+    }
 
     public void deleteTask(int id) {
         taskRepository.delete(id);
@@ -193,7 +268,21 @@ public class TaskService {
             task.addComment(comment);
         }
         
-        return taskRepository.update(task);
+        Task updatedTask = taskRepository.update(task);
+        
+        // If this is a recurring task and recurringTaskService is set,
+        // generate the next instance
+        if (updatedTask.isRecurring() && recurringTaskService != null) {
+            Optional<Task> nextInstance = recurringTaskService.generateNextInstance(updatedTask.getId());
+            if (nextInstance.isPresent()) {
+                Task newTask = nextInstance.get();
+                Comment comment = new Comment("Generated as part of recurring task #" + updatedTask.getId());
+                newTask.addComment(comment);
+                taskRepository.update(newTask);
+            }
+        }
+        
+        return updatedTask;
     }
     
     public Task markTaskAsCompleted(String id, String completionComment) {

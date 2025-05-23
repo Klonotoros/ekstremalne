@@ -17,6 +17,7 @@ import pl.edu.agh.isi.Task;
 import pl.edu.agh.isi.TaskPriority;
 import pl.edu.agh.isi.TaskRepository;
 import pl.edu.agh.isi.TaskService;
+import pl.edu.agh.isi.RecurringTaskService;
 
 @Command(
     name = "list",
@@ -53,6 +54,9 @@ public class ListTasksCommand implements Callable<Integer> {
     
     @Option(names = {"-p", "--priority"}, description = "Filter tasks by priority level (1-low, 2-medium, 3-high)")
     protected String priorityFilter;
+    
+    @Option(names = {"-R", "--recurring"}, description = "Show only recurring tasks")
+    protected boolean onlyRecurring = false;
 
     @Override
     public Integer call() throws Exception {
@@ -62,11 +66,14 @@ public class ListTasksCommand implements Callable<Integer> {
                 return 0;
             }
             
+            TaskRepository taskRepository = new TaskRepository(tasksFile);
             TaskService taskService = createTaskService(tasksFile);
             FamilyMemberService familyMemberService = createFamilyMemberService(familyMembersFile);
+            RecurringTaskService recurringTaskService = new RecurringTaskService(taskRepository);
             
             // Set family member service in task service
             taskService.setFamilyMemberService(familyMemberService);
+            taskService.setRecurringTaskService(recurringTaskService);
             
             List<Task> tasks;
             if (showAll) {
@@ -75,6 +82,13 @@ public class ListTasksCommand implements Callable<Integer> {
                 tasks = taskService.getCompletedTasks();
             } else {
                 tasks = taskService.getActiveTasks();
+            }
+            
+            // Filter by recurring if specified
+            if (onlyRecurring) {
+                tasks = tasks.stream()
+                        .filter(Task::isRecurring)
+                        .collect(Collectors.toList());
             }
             
             // Filter by priority if specified
@@ -120,6 +134,11 @@ public class ListTasksCommand implements Callable<Integer> {
                 heading = "Active Tasks";
             }
             
+            // Add recurring filter info if applicable
+            if (onlyRecurring) {
+                heading += " (Recurring only)";
+            }
+            
             // Add filter information to heading if applicable
             if (priorityFilter != null && !priorityFilter.isEmpty()) {
                 try {
@@ -143,9 +162,9 @@ public class ListTasksCommand implements Callable<Integer> {
             }
             
             System.out.println(heading + ":");
-            System.out.println("---------------------------------------------------------------------------------------------");
-            System.out.println("ID | Status | Priority | Due Date           | Assigned To        | Topic");
-            System.out.println("---------------------------------------------------------------------------------------------");
+            System.out.println("-----------------------------------------------------------------------------------------------------------");
+            System.out.println("ID | Status | Priority | Due Date           | Assigned To        | Recurring | Topic");
+            System.out.println("-----------------------------------------------------------------------------------------------------------");
             
             for (Task task : tasks) {
                 String status = task.isCompleted() ? "✓" : " ";
@@ -169,13 +188,24 @@ public class ListTasksCommand implements Callable<Integer> {
                     priority.getSymbol(), 
                     priority.getDisplayName().substring(0, 1));
                 
-                System.out.printf("%-2d | %-6s | %-8s | %-18s | %-18s | %s%n", 
-                    task.getId(), status, priorityDisplay, dueDateStr, assignedTo, task.getTopic());
+                // Get recurrence info
+                String recurringDisplay = task.isRecurring() ? "Yes" : "No";
+                
+                // Show recurrence info for recurring tasks
+                if (task.isRecurring() && task.getRecurrenceConfig() != null) {
+                    recurringDisplay = task.getRecurrenceConfig().getInterval().getDisplayName().substring(0, 1);
+                } else if (task.isRecurrenceInstance()) {
+                    recurringDisplay = "Instance";
+                }
+                
+                System.out.printf("%-2d | %-6s | %-8s | %-18s | %-18s | %-9s | %s%n", 
+                    task.getId(), status, priorityDisplay, dueDateStr, assignedTo, recurringDisplay, task.getTopic());
             }
             
-            System.out.println("---------------------------------------------------------------------------------------------");
+            System.out.println("-----------------------------------------------------------------------------------------------------------");
             System.out.println("Total: " + tasks.size() + " task(s)");
             System.out.println("Priorities: ! Low, !! Medium, !!! High");
+            System.out.println("Recurring: D - Daily, W - Weekly, M - Monthly");
             System.out.println();
             
             // Show hints
@@ -192,7 +222,7 @@ public class ListTasksCommand implements Callable<Integer> {
     }
     
     private void showExamples() {
-        System.out.println("Usage: list [-a | -c] [-d | -r | -P] [-p PRIORITY]");
+        System.out.println("Usage: list [-a | -c] [-d | -r | -P] [-p PRIORITY] [-R]");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  list                          - List active (non-completed) tasks");
@@ -202,6 +232,7 @@ public class ListTasksCommand implements Callable<Integer> {
         System.out.println("  list -r                       - List active tasks sorted by due date (descending)");
         System.out.println("  list -P                       - List active tasks sorted by priority (highest first)");
         System.out.println("  list -p 3                     - List only high priority tasks");
+        System.out.println("  list -R                       - List only recurring tasks");
         System.out.println("  list -a -d                    - List all tasks sorted by due date (ascending)");
         System.out.println();
         System.out.println("Options:");
@@ -211,6 +242,7 @@ public class ListTasksCommand implements Callable<Integer> {
         System.out.println("  -r, --date-desc               Sort tasks by due date (descending)");
         System.out.println("  -P, --priority-sort           Sort tasks by priority (highest first)");
         System.out.println("  -p, --priority LEVEL          Filter tasks by priority level (1-low, 2-medium, 3-high)");
+        System.out.println("  -R, --recurring               Show only recurring tasks");
         System.out.println("  -h, --help                    Show this help message");
     }
 

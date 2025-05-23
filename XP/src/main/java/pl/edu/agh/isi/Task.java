@@ -14,6 +14,11 @@ public class Task {
     private String assignedTo;
     private List<Comment> comments;
     private TaskPriority priority;
+    
+    // Recurrence-related fields
+    private RecurrenceConfig recurrenceConfig;
+    private Integer parentTaskId;
+    private Integer recurrenceNumber;
 
     // Default constructor for Jackson
     public Task() {
@@ -21,6 +26,7 @@ public class Task {
         this.isCompleted = false;
         this.createdAt = LocalDateTime.now();
         this.priority = TaskPriority.MEDIUM; // Default priority
+        this.recurrenceNumber = null;
     }
 
     public Task(String topic, LocalDateTime dueDate, String description) {
@@ -46,6 +52,33 @@ public class Task {
     public Task(int id, String topic, LocalDateTime dueDate, String description, TaskPriority priority) {
         this(topic, dueDate, description, priority);
         this.id = id;
+    }
+    
+    /**
+     * Create a task with recurrence configuration
+     */
+    public Task(String topic, LocalDateTime dueDate, String description, RecurrenceConfig recurrenceConfig) {
+        this(topic, dueDate, description);
+        this.recurrenceConfig = recurrenceConfig;
+    }
+    
+    /**
+     * Create a task with recurrence configuration and priority
+     */
+    public Task(String topic, LocalDateTime dueDate, String description, 
+            TaskPriority priority, RecurrenceConfig recurrenceConfig) {
+        this(topic, dueDate, description, priority);
+        this.recurrenceConfig = recurrenceConfig;
+    }
+    
+    /**
+     * Create a recurring task instance (child task from a parent recurring task)
+     */
+    public Task(String topic, LocalDateTime dueDate, String description, TaskPriority priority, 
+            Integer parentTaskId, Integer recurrenceNumber) {
+        this(topic, dueDate, description, priority);
+        this.parentTaskId = parentTaskId;
+        this.recurrenceNumber = recurrenceNumber;
     }
 
     public int getId() {
@@ -128,6 +161,46 @@ public class Task {
     
     public void setPriority(TaskPriority priority) {
         this.priority = priority;
+    }
+    
+    public RecurrenceConfig getRecurrenceConfig() {
+        return recurrenceConfig;
+    }
+    
+    public void setRecurrenceConfig(RecurrenceConfig recurrenceConfig) {
+        this.recurrenceConfig = recurrenceConfig;
+    }
+    
+    public Integer getParentTaskId() {
+        return parentTaskId;
+    }
+    
+    public void setParentTaskId(Integer parentTaskId) {
+        this.parentTaskId = parentTaskId;
+    }
+    
+    public Integer getRecurrenceNumber() {
+        return recurrenceNumber;
+    }
+    
+    public void setRecurrenceNumber(Integer recurrenceNumber) {
+        this.recurrenceNumber = recurrenceNumber;
+    }
+    
+    /**
+     * Check if this task is a recurring task (has recurrence configuration)
+     * @return true if this is a recurring task, false otherwise
+     */
+    public boolean isRecurring() {
+        return recurrenceConfig != null;
+    }
+    
+    /**
+     * Check if this task is a recurrence instance (child of a recurring task)
+     * @return true if this is a recurrence instance, false otherwise
+     */
+    public boolean isRecurrenceInstance() {
+        return parentTaskId != null && recurrenceNumber != null;
     }
 }
 
