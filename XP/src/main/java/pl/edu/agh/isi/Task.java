@@ -13,12 +13,14 @@ public class Task {
     private boolean isCompleted;
     private String assignedTo;
     private List<Comment> comments;
+    private TaskPriority priority;
 
     // Default constructor for Jackson
     public Task() {
         this.comments = new ArrayList<>();
         this.isCompleted = false;
         this.createdAt = LocalDateTime.now();
+        this.priority = TaskPriority.MEDIUM; // Default priority
     }
 
     public Task(String topic, LocalDateTime dueDate, String description) {
@@ -33,6 +35,16 @@ public class Task {
 
     public Task(int id, String topic, LocalDateTime dueDate, String description) {
         this(topic, dueDate, description);
+        this.id = id;
+    }
+    
+    public Task(String topic, LocalDateTime dueDate, String description, TaskPriority priority) {
+        this(topic, dueDate, description);
+        this.priority = priority;
+    }
+    
+    public Task(int id, String topic, LocalDateTime dueDate, String description, TaskPriority priority) {
+        this(topic, dueDate, description, priority);
         this.id = id;
     }
 
@@ -108,6 +120,14 @@ public class Task {
             this.comments = new ArrayList<>();
         }
         this.comments.add(comment);
+    }
+    
+    public TaskPriority getPriority() {
+        return priority;
+    }
+    
+    public void setPriority(TaskPriority priority) {
+        this.priority = priority;
     }
 }
 

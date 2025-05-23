@@ -9,10 +9,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 import pl.edu.agh.isi.FamilyMemberRepository;
 import pl.edu.agh.isi.FamilyMemberService;
 import pl.edu.agh.isi.Task;
+import pl.edu.agh.isi.TaskPriority;
 import pl.edu.agh.isi.TaskRepository;
 import pl.edu.agh.isi.TaskService;
 
@@ -45,6 +47,12 @@ public class ListTasksCommand implements Callable<Integer> {
     
     @Option(names = {"-r", "--date-desc"}, description = "Sort tasks by due date (descending)")
     protected boolean sortDescending = false;
+    
+    @Option(names = {"-P", "--priority-sort"}, description = "Sort tasks by priority (highest first)")
+    protected boolean sortByPriority = false;
+    
+    @Option(names = {"-p", "--priority"}, description = "Filter tasks by priority level (1-low, 2-medium, 3-high)")
+    protected String priorityFilter;
 
     @Override
     public Integer call() throws Exception {
@@ -69,8 +77,27 @@ public class ListTasksCommand implements Callable<Integer> {
                 tasks = taskService.getActiveTasks();
             }
             
+            // Filter by priority if specified
+            if (priorityFilter != null && !priorityFilter.isEmpty()) {
+                try {
+                    int priorityLevel = Integer.parseInt(priorityFilter);
+                    if (priorityLevel < 1 || priorityLevel > 3) {
+                        System.err.println("Warning: Priority level must be between 1 and 3. Showing all priorities.");
+                    } else {
+                        TaskPriority priority = TaskPriority.fromLevel(priorityLevel);
+                        tasks = tasks.stream()
+                                .filter(task -> task.getPriority() == priority)
+                                .collect(Collectors.toList());
+                    }
+                } catch (NumberFormatException e) {
+                    System.err.println("Warning: Invalid priority format. Showing all priorities.");
+                }
+            }
+            
             // Apply sorting if requested
-            if (sortAscending && sortDescending) {
+            if (sortByPriority) {
+                tasks = taskService.getTasksSortedByPriorityDescending(tasks);
+            } else if (sortAscending && sortDescending) {
                 System.err.println("Warning: Both ascending and descending sort options specified. Using ascending sort.");
                 tasks = taskService.getTasksSortedByDueDateAscending(tasks);
             } else if (sortAscending) {
@@ -93,17 +120,32 @@ public class ListTasksCommand implements Callable<Integer> {
                 heading = "Active Tasks";
             }
             
+            // Add filter information to heading if applicable
+            if (priorityFilter != null && !priorityFilter.isEmpty()) {
+                try {
+                    int priorityLevel = Integer.parseInt(priorityFilter);
+                    if (priorityLevel >= 1 && priorityLevel <= 3) {
+                        TaskPriority priority = TaskPriority.fromLevel(priorityLevel);
+                        heading += " (Priority: " + priority.getDisplayName() + ")";
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Ignore invalid priority format as warning is already shown
+                }
+            }
+            
             // Add sorting information to heading if applicable
-            if (sortAscending) {
+            if (sortByPriority) {
+                heading += " (Sorted by priority)";
+            } else if (sortAscending) {
                 heading += " (Sorted by due date, earliest first)";
             } else if (sortDescending) {
                 heading += " (Sorted by due date, latest first)";
             }
             
             System.out.println(heading + ":");
-            System.out.println("---------------------------------------------------------------------------------");
-            System.out.println("ID | Status | Due Date           | Assigned To        | Topic");
-            System.out.println("---------------------------------------------------------------------------------");
+            System.out.println("---------------------------------------------------------------------------------------------");
+            System.out.println("ID | Status | Priority | Due Date           | Assigned To        | Topic");
+            System.out.println("---------------------------------------------------------------------------------------------");
             
             for (Task task : tasks) {
                 String status = task.isCompleted() ? "✓" : " ";
@@ -121,17 +163,24 @@ public class ListTasksCommand implements Callable<Integer> {
                     }
                 }
                 
-                System.out.printf("%-2d | %-6s | %-18s | %-18s | %s%n", 
-                    task.getId(), status, dueDateStr, assignedTo, task.getTopic());
+                // Get priority display
+                TaskPriority priority = task.getPriority();
+                String priorityDisplay = String.format("%s %s", 
+                    priority.getSymbol(), 
+                    priority.getDisplayName().substring(0, 1));
+                
+                System.out.printf("%-2d | %-6s | %-8s | %-18s | %-18s | %s%n", 
+                    task.getId(), status, priorityDisplay, dueDateStr, assignedTo, task.getTopic());
             }
             
-            System.out.println("---------------------------------------------------------------------------------");
+            System.out.println("---------------------------------------------------------------------------------------------");
             System.out.println("Total: " + tasks.size() + " task(s)");
+            System.out.println("Priorities: ! Low, !! Medium, !!! High");
             System.out.println();
             
-            // Show hint about sorting options
-            if (!(sortAscending || sortDescending)) {
-                System.out.println("Tip: Use -d to sort by due date (earliest first) or -r (latest first)");
+            // Show hints
+            if (!(sortAscending || sortDescending || sortByPriority)) {
+                System.out.println("Tip: Use -d to sort by due date (earliest first) or -r (latest first) or -P (by priority)");
             }
             
             return 0;
@@ -143,22 +192,26 @@ public class ListTasksCommand implements Callable<Integer> {
     }
     
     private void showExamples() {
-        System.out.println("Usage: list [-a | -c] [-d | -r]");
+        System.out.println("Usage: list [-a | -c] [-d | -r | -P] [-p PRIORITY]");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  list          - List active (non-completed) tasks");
-        System.out.println("  list -a       - List all tasks, including completed ones");
-        System.out.println("  list -c       - List only completed tasks");
-        System.out.println("  list -d       - List active tasks sorted by due date (ascending)");
-        System.out.println("  list -r       - List active tasks sorted by due date (descending)");
-        System.out.println("  list -a -d    - List all tasks sorted by due date (ascending)");
+        System.out.println("  list                          - List active (non-completed) tasks");
+        System.out.println("  list -a                       - List all tasks, including completed ones");
+        System.out.println("  list -c                       - List only completed tasks");
+        System.out.println("  list -d                       - List active tasks sorted by due date (ascending)");
+        System.out.println("  list -r                       - List active tasks sorted by due date (descending)");
+        System.out.println("  list -P                       - List active tasks sorted by priority (highest first)");
+        System.out.println("  list -p 3                     - List only high priority tasks");
+        System.out.println("  list -a -d                    - List all tasks sorted by due date (ascending)");
         System.out.println();
         System.out.println("Options:");
-        System.out.println("  -a, --all                 Show all tasks including completed ones");
-        System.out.println("  -c, --completed           Show only completed tasks");
-        System.out.println("  -d, --date-asc            Sort tasks by due date (ascending)");
-        System.out.println("  -r, --date-desc           Sort tasks by due date (descending)");
-        System.out.println("  -h, --help                Show this help message");
+        System.out.println("  -a, --all                     Show all tasks including completed ones");
+        System.out.println("  -c, --completed               Show only completed tasks");
+        System.out.println("  -d, --date-asc                Sort tasks by due date (ascending)");
+        System.out.println("  -r, --date-desc               Sort tasks by due date (descending)");
+        System.out.println("  -P, --priority-sort           Sort tasks by priority (highest first)");
+        System.out.println("  -p, --priority LEVEL          Filter tasks by priority level (1-low, 2-medium, 3-high)");
+        System.out.println("  -h, --help                    Show this help message");
     }
 
     // Protected method for better testability

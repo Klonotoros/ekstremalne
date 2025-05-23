@@ -12,6 +12,7 @@ import java.time.format.DateTimeParseException;
 import java.util.concurrent.Callable;
 
 import pl.edu.agh.isi.Task;
+import pl.edu.agh.isi.TaskPriority;
 import pl.edu.agh.isi.TaskRepository;
 import pl.edu.agh.isi.TaskService;
 
@@ -32,6 +33,9 @@ public class CreateTaskCommand implements Callable<Integer> {
     
     @Option(names = {"-i", "--description"}, description = "Task description")
     private String description = "";
+    
+    @Option(names = {"-p", "--priority"}, description = "Task priority (1-low, 2-medium, 3-high)")
+    private String priorityStr;
     
     @Option(names = {"-f", "--file"}, description = "Tasks data file", defaultValue = "tasks.json", hidden = true)
     private File tasksFile;
@@ -61,8 +65,26 @@ public class CreateTaskCommand implements Callable<Integer> {
                 }
             }
             
-            Task task = service.createTask(topic, dueDate, description);
-            System.out.println("Task created successfully with ID: " + task.getId());
+            Task task;
+            if (priorityStr != null && !priorityStr.isEmpty()) {
+                try {
+                    int priorityLevel = Integer.parseInt(priorityStr);
+                    if (priorityLevel < 1 || priorityLevel > 3) {
+                        System.err.println("Invalid priority level. Please use: 1 (low), 2 (medium), or 3 (high)");
+                        return 1;
+                    }
+                    TaskPriority priority = TaskPriority.fromLevel(priorityLevel);
+                    task = service.createTask(topic, dueDate, description, priority);
+                    System.out.println("Task created successfully with ID: " + task.getId() + " and priority: " + priority.getDisplayName());
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid priority format. Please use: 1 (low), 2 (medium), or 3 (high)");
+                    return 1;
+                }
+            } else {
+                task = service.createTask(topic, dueDate, description);
+                System.out.println("Task created successfully with ID: " + task.getId() + " and default priority: " + TaskPriority.MEDIUM.getDisplayName());
+            }
+            
             return 0;
         } catch (IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
@@ -75,16 +97,18 @@ public class CreateTaskCommand implements Callable<Integer> {
     }
     
     private void showExamples() {
-        System.out.println("Usage: create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]");
+        System.out.println("Usage: create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"] [-p PRIORITY]");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  create \"Clean kitchen\"                       - Create a simple task");
         System.out.println("  create \"Buy groceries\" -d \"2024-12-30 18:00\" - Create a task with due date");
         System.out.println("  create \"Fix car\" -i \"Check engine light\"     - Create a task with description");
+        System.out.println("  create \"Pay bills\" -p 3                      - Create a high priority task");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  -d, --due-date \"YYYY-MM-DD HH:MM\"  Set the due date for the task");
         System.out.println("  -i, --description \"text\"          Add a description to the task");
+        System.out.println("  -p, --priority NUMBER             Set the priority (1-low, 2-medium, 3-high)");
         System.out.println("  -h, --help                         Show this help message");
     }
 } 

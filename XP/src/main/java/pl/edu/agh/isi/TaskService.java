@@ -30,6 +30,18 @@ public class TaskService {
         Task task = new Task(topic, dueDate, description);
         return taskRepository.save(task);
     }
+    
+    public Task createTask(String topic, LocalDateTime dueDate, String description, TaskPriority priority) {
+        if (topic == null || topic.trim().isEmpty()) {
+            throw new IllegalArgumentException("Topic cannot be empty");
+        }
+        Task task = new Task(topic, dueDate, description, priority);
+        return taskRepository.save(task);
+    }
+    
+    public Task createTask(String topic, LocalDateTime dueDate, String description, int priorityLevel) {
+        return createTask(topic, dueDate, description, TaskPriority.fromLevel(priorityLevel));
+    }
 
     public Optional<Task> getTask(int id) {
         return taskRepository.findById(id);
@@ -86,6 +98,33 @@ public class TaskService {
                          Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
+    
+    /**
+     * Returns tasks sorted by priority (highest first)
+     */
+    public List<Task> getTasksSortedByPriorityDescending(List<Task> tasks) {
+        return tasks.stream()
+                .sorted(Comparator.comparing(
+                    task -> task.getPriority() != null ? task.getPriority() : TaskPriority.MEDIUM,
+                    Comparator.comparing(TaskPriority::getLevel).reversed()))
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns tasks with a specific priority
+     */
+    public List<Task> getTasksByPriority(TaskPriority priority) {
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getPriority() == priority)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Returns tasks with a specific priority level (1-3)
+     */
+    public List<Task> getTasksByPriorityLevel(int priorityLevel) {
+        return getTasksByPriority(TaskPriority.fromLevel(priorityLevel));
+    }
 
     public void deleteTask(int id) {
         taskRepository.delete(id);
@@ -116,6 +155,31 @@ public class TaskService {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid task ID format: " + id);
         }
+    }
+    
+    public Task setPriority(int id, TaskPriority priority) {
+        Task task = taskRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Task not found with id: " + id));
+        
+        task.setPriority(priority);
+        
+        return taskRepository.update(task);
+    }
+    
+    public Task setPriority(String id, TaskPriority priority) {
+        try {
+            return setPriority(Integer.parseInt(id), priority);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid task ID format: " + id);
+        }
+    }
+    
+    public Task setPriorityByLevel(int id, int priorityLevel) {
+        return setPriority(id, TaskPriority.fromLevel(priorityLevel));
+    }
+    
+    public Task setPriorityByLevel(String id, int priorityLevel) {
+        return setPriority(id, TaskPriority.fromLevel(priorityLevel));
     }
     
     public Task markTaskAsCompleted(int id, String completionComment) {

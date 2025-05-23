@@ -12,6 +12,7 @@ import pl.edu.agh.isi.cli.ReopenTaskCommand;
 import pl.edu.agh.isi.cli.ListTasksCommand;
 import pl.edu.agh.isi.cli.AssignTaskCommand;
 import pl.edu.agh.isi.cli.UnassignTaskCommand;
+import pl.edu.agh.isi.cli.SetPriorityCommand;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -30,7 +31,8 @@ import java.io.File;
         RemoveFamilyMemberCommand.class,
         ListFamilyMembersCommand.class,
         AssignTaskCommand.class,
-        UnassignTaskCommand.class
+        UnassignTaskCommand.class,
+        SetPriorityCommand.class
     },
     mixinStandardHelpOptions = false,
     versionProvider = Main.VersionProvider.class
@@ -68,10 +70,11 @@ public class Main implements Runnable {
     private void runInteractive(CommandLine cmd) {
         System.out.println("Welcome to Household Task Management Application!");
         System.out.println("Available commands:");
-        System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
+        System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"] [-p PRIORITY]  - Create a new task");
         System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
         System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
-        System.out.println("  list [-a | -c] [-d | -r]                                       - List tasks");
+        System.out.println("  list [-a | -c] [-d | -r | -P] [-p PRIORITY]                    - List tasks");
+        System.out.println("  set-priority TASK_ID PRIORITY                                   - Set task priority (1-low, 2-medium, 3-high)");
         System.out.println("  assign TASK_ID MEMBER_ID                                        - Assign task to a family member");
         System.out.println("  unassign TASK_ID                                                - Unassign task from family member");
         System.out.println("  add-member \"Name\"                                               - Add a new family member");
@@ -122,10 +125,11 @@ public class Main implements Runnable {
                     System.out.println("Goodbye!");
                 } else if (input.equalsIgnoreCase("help")) {
                     System.out.println("Available commands:");
-                    System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
+                    System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"] [-p PRIORITY]  - Create a new task");
                     System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
                     System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
-                    System.out.println("  list [-a | -c] [-d | -r]                                       - List tasks");
+                    System.out.println("  list [-a | -c] [-d | -r | -P] [-p PRIORITY]                    - List tasks");
+                    System.out.println("  set-priority TASK_ID PRIORITY                                   - Set task priority (1-low, 2-medium, 3-high)");
                     System.out.println("  assign TASK_ID MEMBER_ID                                        - Assign task to a family member");
                     System.out.println("  unassign TASK_ID                                                - Unassign task from family member");
                     System.out.println("  add-member \"Name\"                                               - Add a new family member");
@@ -136,8 +140,11 @@ public class Main implements Runnable {
                     System.out.println();
                     System.out.println("Examples:");
                     System.out.println("  create \"Clean kitchen\"                       - Create a simple task");
+                    System.out.println("  create \"Pay bills\" -p 3                      - Create a high priority task");
                     System.out.println("  complete 1 -c \"Cleaned thoroughly\"            - Mark task as completed with comment");
-                    System.out.println("  list                                          - List active tasks");
+                    System.out.println("  list -p 3                                    - List high priority tasks");
+                    System.out.println("  list -P                                      - List tasks sorted by priority");
+                    System.out.println("  set-priority 1 3                             - Set task 1 to high priority");
                     System.out.println("  assign 1 2                                    - Assign task 1 to family member 2");
                     System.out.println("  unassign 1                                    - Unassign task 1");
                     System.out.println("  add-member \"John Smith\"                       - Add John as a family member");
