@@ -7,8 +7,11 @@ import picocli.CommandLine.Option;
 import java.io.File;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
+import pl.edu.agh.isi.FamilyMemberRepository;
+import pl.edu.agh.isi.FamilyMemberService;
 import pl.edu.agh.isi.Task;
 import pl.edu.agh.isi.TaskRepository;
 import pl.edu.agh.isi.TaskService;
@@ -31,6 +34,9 @@ public class ListTasksCommand implements Callable<Integer> {
     @Option(names = {"-f", "--file"}, description = "Tasks data file", defaultValue = "tasks.json", hidden = true)
     protected File tasksFile;
     
+    @Option(names = {"-m", "--member-file"}, description = "Family members data file", defaultValue = "family_members.json", hidden = true)
+    protected File familyMembersFile;
+    
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show help message")
     protected boolean helpRequested = false;
     
@@ -48,25 +54,29 @@ public class ListTasksCommand implements Callable<Integer> {
                 return 0;
             }
             
-            TaskService service = createTaskService(tasksFile);
+            TaskService taskService = createTaskService(tasksFile);
+            FamilyMemberService familyMemberService = createFamilyMemberService(familyMembersFile);
+            
+            // Set family member service in task service
+            taskService.setFamilyMemberService(familyMemberService);
             
             List<Task> tasks;
             if (showAll) {
-                tasks = service.getAllTasks();
+                tasks = taskService.getAllTasks();
             } else if (showOnlyCompleted) {
-                tasks = service.getCompletedTasks();
+                tasks = taskService.getCompletedTasks();
             } else {
-                tasks = service.getActiveTasks();
+                tasks = taskService.getActiveTasks();
             }
             
             // Apply sorting if requested
             if (sortAscending && sortDescending) {
                 System.err.println("Warning: Both ascending and descending sort options specified. Using ascending sort.");
-                tasks = service.getTasksSortedByDueDateAscending(tasks);
+                tasks = taskService.getTasksSortedByDueDateAscending(tasks);
             } else if (sortAscending) {
-                tasks = service.getTasksSortedByDueDateAscending(tasks);
+                tasks = taskService.getTasksSortedByDueDateAscending(tasks);
             } else if (sortDescending) {
-                tasks = service.getTasksSortedByDueDateDescending(tasks);
+                tasks = taskService.getTasksSortedByDueDateDescending(tasks);
             }
             
             if (tasks.isEmpty()) {
@@ -91,19 +101,31 @@ public class ListTasksCommand implements Callable<Integer> {
             }
             
             System.out.println(heading + ":");
-            System.out.println("--------------------------------------------------------------------");
-            System.out.println("ID | Status | Due Date           | Topic");
-            System.out.println("--------------------------------------------------------------------");
+            System.out.println("---------------------------------------------------------------------------------");
+            System.out.println("ID | Status | Due Date           | Assigned To        | Topic");
+            System.out.println("---------------------------------------------------------------------------------");
             
             for (Task task : tasks) {
                 String status = task.isCompleted() ? "✓" : " ";
                 String dueDateStr = task.getDueDate() != null ? 
                     task.getDueDate().format(DATE_FORMATTER) : "Not specified";
-                System.out.printf("%-2d | %-6s | %-18s | %s%n", 
-                    task.getId(), status, dueDateStr, task.getTopic());
+                
+                // Get assigned family member's name
+                String assignedTo = "Not assigned";
+                if (task.getAssignedTo() != null && !task.getAssignedTo().isEmpty()) {
+                    Optional<String> memberName = taskService.getAssignedFamilyMemberName(task);
+                    if (memberName.isPresent()) {
+                        assignedTo = memberName.get();
+                    } else {
+                        assignedTo = "Member ID: " + task.getAssignedTo();
+                    }
+                }
+                
+                System.out.printf("%-2d | %-6s | %-18s | %-18s | %s%n", 
+                    task.getId(), status, dueDateStr, assignedTo, task.getTopic());
             }
             
-            System.out.println("--------------------------------------------------------------------");
+            System.out.println("---------------------------------------------------------------------------------");
             System.out.println("Total: " + tasks.size() + " task(s)");
             System.out.println();
             
@@ -143,5 +165,11 @@ public class ListTasksCommand implements Callable<Integer> {
     protected TaskService createTaskService(File file) {
         TaskRepository repository = new TaskRepository(file);
         return new TaskService(repository);
+    }
+    
+    // Protected method for family member service creation
+    protected FamilyMemberService createFamilyMemberService(File file) {
+        FamilyMemberRepository repository = new FamilyMemberRepository(file);
+        return new FamilyMemberService(repository);
     }
 } 

@@ -8,9 +8,19 @@ import java.util.stream.Collectors;
 
 public class TaskService {
     private final TaskRepository taskRepository;
+    private FamilyMemberService familyMemberService;
 
     public TaskService(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
+    }
+    
+    public TaskService(TaskRepository taskRepository, FamilyMemberService familyMemberService) {
+        this.taskRepository = taskRepository;
+        this.familyMemberService = familyMemberService;
+    }
+    
+    public void setFamilyMemberService(FamilyMemberService familyMemberService) {
+        this.familyMemberService = familyMemberService;
     }
 
     public Task createTask(String topic, LocalDateTime dueDate, String description) {
@@ -149,6 +159,119 @@ public class TaskService {
             return reopenTask(Integer.parseInt(id), reopenComment);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid task ID format: " + id);
+        }
+    }
+    
+    /**
+     * Assigns a task to a family member
+     * 
+     * @param taskId The ID of the task to assign
+     * @param familyMemberId The ID of the family member to assign the task to
+     * @return The updated task
+     * @throws IllegalArgumentException if the task or family member is not found,
+     *                                  or if the task is already assigned
+     */
+    public Task assignTask(int taskId, int familyMemberId) {
+        if (familyMemberService == null) {
+            throw new IllegalStateException("FamilyMemberService is not set");
+        }
+        
+        // Verify task exists
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new IllegalArgumentException("Task not found with ID: " + taskId));
+        
+        // Check if task is already assigned
+        if (task.getAssignedTo() != null && !task.getAssignedTo().isEmpty()) {
+            throw new IllegalArgumentException("Task is already assigned to someone");
+        }
+        
+        // Verify family member exists
+        FamilyMember member = familyMemberService.getFamilyMember(familyMemberId)
+            .orElseThrow(() -> new IllegalArgumentException("Family member not found with ID: " + familyMemberId));
+        
+        // Assign the task
+        task.setAssignedTo(String.valueOf(member.getId()));
+        
+        // Add a comment for the assignment
+        Comment comment = new Comment("Task assigned to " + member.getName());
+        task.addComment(comment);
+        
+        return taskRepository.update(task);
+    }
+    
+    /**
+     * Assigns a task to a family member using string IDs
+     */
+    public Task assignTask(String taskId, String familyMemberId) {
+        try {
+            return assignTask(Integer.parseInt(taskId), Integer.parseInt(familyMemberId));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid ID format: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Unassigns a task from a family member
+     */
+    public Task unassignTask(int taskId) {
+        // Verify task exists
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new IllegalArgumentException("Task not found with ID: " + taskId));
+        
+        // Check if task is assigned
+        if (task.getAssignedTo() == null || task.getAssignedTo().isEmpty()) {
+            throw new IllegalArgumentException("Task is not assigned to anyone");
+        }
+        
+        // Get the member's name for the comment if possible
+        String memberName = "someone";
+        if (familyMemberService != null) {
+            try {
+                int memberId = Integer.parseInt(task.getAssignedTo());
+                Optional<FamilyMember> member = familyMemberService.getFamilyMember(memberId);
+                if (member.isPresent()) {
+                    memberName = member.get().getName();
+                }
+            } catch (Exception ignored) {
+                // Ignore any errors in getting member name
+            }
+        }
+        
+        // Unassign the task
+        task.setAssignedTo(null);
+        
+        // Add a comment for the unassignment
+        Comment comment = new Comment("Task unassigned from " + memberName);
+        task.addComment(comment);
+        
+        return taskRepository.update(task);
+    }
+    
+    /**
+     * Unassigns a task using string ID
+     */
+    public Task unassignTask(String taskId) {
+        try {
+            return unassignTask(Integer.parseInt(taskId));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid task ID format: " + taskId);
+        }
+    }
+    
+    /**
+     * Gets the name of the family member assigned to a task
+     */
+    public Optional<String> getAssignedFamilyMemberName(Task task) {
+        if (task.getAssignedTo() == null || task.getAssignedTo().isEmpty() || familyMemberService == null) {
+            return Optional.empty();
+        }
+        
+        try {
+            int memberId = Integer.parseInt(task.getAssignedTo());
+            return familyMemberService.getFamilyMember(memberId)
+                .map(FamilyMember::getName);
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 } 

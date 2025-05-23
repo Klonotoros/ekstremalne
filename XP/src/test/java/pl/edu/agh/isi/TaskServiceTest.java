@@ -24,6 +24,9 @@ class TaskServiceTest {
     
     @Mock
     private TaskRepository taskRepository;
+    
+    @Mock
+    private FamilyMemberService familyMemberService;
 
     private TaskService taskService;
     private LocalDateTime dueDate;
@@ -31,7 +34,7 @@ class TaskServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        taskService = new TaskService(taskRepository);
+        taskService = new TaskService(taskRepository, familyMemberService);
         dueDate = LocalDateTime.now().plusDays(1);
     }
     
@@ -532,6 +535,192 @@ class TaskServiceTest {
             // Then
             assertTrue(sortedAscending.isEmpty());
             assertTrue(sortedDescending.isEmpty());
+        }
+    }
+    
+    @Nested
+    @DisplayName("Task Assignment")
+    class TaskAssignment {
+        
+        @Test
+        @DisplayName("should assign task to family member")
+        void shouldAssignTaskToFamilyMember() {
+            // Given
+            int taskId = 1;
+            int memberId = 2;
+            String memberName = "John Smith";
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            FamilyMember member = new FamilyMember(memberId, memberName);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(familyMemberService.getFamilyMember(memberId)).thenReturn(Optional.of(member));
+            
+            ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+            when(taskRepository.update(taskCaptor.capture())).thenAnswer(invocation -> {
+                Task capturedTask = taskCaptor.getValue();
+                return capturedTask;
+            });
+            
+            // When
+            Task result = taskService.assignTask(taskId, memberId);
+            
+            // Then
+            assertEquals(String.valueOf(memberId), result.getAssignedTo());
+            assertTrue(result.getComments().stream()
+                .anyMatch(c -> c.getContent().contains("assigned to " + memberName)));
+            
+            verify(taskRepository).findById(taskId);
+            verify(familyMemberService).getFamilyMember(memberId);
+            verify(taskRepository).update(any(Task.class));
+        }
+        
+        @Test
+        @DisplayName("should throw exception when task already assigned")
+        void shouldThrowExceptionWhenTaskAlreadyAssigned() {
+            // Given
+            int taskId = 1;
+            int memberId = 2;
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setAssignedTo("3"); // Already assigned to member 3
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.assignTask(taskId, memberId));
+            
+            verify(taskRepository).findById(taskId);
+            verify(familyMemberService, never()).getFamilyMember(anyInt());
+            verify(taskRepository, never()).update(any(Task.class));
+        }
+        
+        @Test
+        @DisplayName("should throw exception when task not found")
+        void shouldThrowExceptionWhenTaskNotFoundForAssignment() {
+            // Given
+            int taskId = 999;
+            int memberId = 2;
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+            
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.assignTask(taskId, memberId));
+            
+            verify(taskRepository).findById(taskId);
+            verify(familyMemberService, never()).getFamilyMember(anyInt());
+        }
+        
+        @Test
+        @DisplayName("should throw exception when family member not found")
+        void shouldThrowExceptionWhenFamilyMemberNotFound() {
+            // Given
+            int taskId = 1;
+            int memberId = 999;
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(familyMemberService.getFamilyMember(memberId)).thenReturn(Optional.empty());
+            
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.assignTask(taskId, memberId));
+            
+            verify(taskRepository).findById(taskId);
+            verify(familyMemberService).getFamilyMember(memberId);
+            verify(taskRepository, never()).update(any(Task.class));
+        }
+        
+        @Test
+        @DisplayName("should unassign task")
+        void shouldUnassignTask() {
+            // Given
+            int taskId = 1;
+            int memberId = 2;
+            String memberName = "John Smith";
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setAssignedTo(String.valueOf(memberId));
+            FamilyMember member = new FamilyMember(memberId, memberName);
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            when(familyMemberService.getFamilyMember(memberId)).thenReturn(Optional.of(member));
+            
+            ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+            when(taskRepository.update(taskCaptor.capture())).thenAnswer(invocation -> {
+                Task capturedTask = taskCaptor.getValue();
+                return capturedTask;
+            });
+            
+            // When
+            Task result = taskService.unassignTask(taskId);
+            
+            // Then
+            assertNull(result.getAssignedTo());
+            assertTrue(result.getComments().stream()
+                .anyMatch(c -> c.getContent().contains("unassigned from " + memberName)));
+            
+            verify(taskRepository).findById(taskId);
+            verify(familyMemberService).getFamilyMember(memberId);
+            verify(taskRepository).update(any(Task.class));
+        }
+        
+        @Test
+        @DisplayName("should throw exception when trying to unassign a task that is not assigned")
+        void shouldThrowExceptionWhenUnassigningUnassignedTask() {
+            // Given
+            int taskId = 1;
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            // Task is not assigned
+            
+            when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+            
+            // When/Then
+            assertThrows(IllegalArgumentException.class, () -> taskService.unassignTask(taskId));
+            
+            verify(taskRepository).findById(taskId);
+            verify(taskRepository, never()).update(any(Task.class));
+        }
+        
+        @Test
+        @DisplayName("should get assigned family member name")
+        void shouldGetAssignedFamilyMemberName() {
+            // Given
+            int taskId = 1;
+            int memberId = 2;
+            String memberName = "John Smith";
+            
+            Task task = new Task(taskId, "Clean basement", null, "");
+            task.setAssignedTo(String.valueOf(memberId));
+            FamilyMember member = new FamilyMember(memberId, memberName);
+            
+            when(familyMemberService.getFamilyMember(memberId)).thenReturn(Optional.of(member));
+            
+            // When
+            Optional<String> result = taskService.getAssignedFamilyMemberName(task);
+            
+            // Then
+            assertTrue(result.isPresent());
+            assertEquals(memberName, result.get());
+            
+            verify(familyMemberService).getFamilyMember(memberId);
+        }
+        
+        @Test
+        @DisplayName("should return empty optional when task is not assigned")
+        void shouldReturnEmptyOptionalWhenTaskNotAssigned() {
+            // Given
+            Task task = new Task(1, "Clean basement", null, "");
+            // Task is not assigned
+            
+            // When
+            Optional<String> result = taskService.getAssignedFamilyMemberName(task);
+            
+            // Then
+            assertFalse(result.isPresent());
+            
+            verifyNoInteractions(familyMemberService);
         }
     }
 } 

@@ -10,6 +10,8 @@ import pl.edu.agh.isi.cli.ListFamilyMembersCommand;
 import pl.edu.agh.isi.cli.CompleteTaskCommand;
 import pl.edu.agh.isi.cli.ReopenTaskCommand;
 import pl.edu.agh.isi.cli.ListTasksCommand;
+import pl.edu.agh.isi.cli.AssignTaskCommand;
+import pl.edu.agh.isi.cli.UnassignTaskCommand;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -26,7 +28,9 @@ import java.io.File;
         ListTasksCommand.class,
         AddFamilyMemberCommand.class,
         RemoveFamilyMemberCommand.class,
-        ListFamilyMembersCommand.class
+        ListFamilyMembersCommand.class,
+        AssignTaskCommand.class,
+        UnassignTaskCommand.class
     },
     mixinStandardHelpOptions = false,
     versionProvider = Main.VersionProvider.class
@@ -67,7 +71,9 @@ public class Main implements Runnable {
         System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
         System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
         System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
-        System.out.println("  list [-a | -c]                                                 - List tasks");
+        System.out.println("  list [-a | -c] [-d | -r]                                       - List tasks");
+        System.out.println("  assign TASK_ID MEMBER_ID                                        - Assign task to a family member");
+        System.out.println("  unassign TASK_ID                                                - Unassign task from family member");
         System.out.println("  add-member \"Name\"                                               - Add a new family member");
         System.out.println("  remove-member ID                                                - Remove a family member");
         System.out.println("  list-members                                                    - List all family members");
@@ -119,7 +125,9 @@ public class Main implements Runnable {
                     System.out.println("  create \"Task Topic\" [-d \"YYYY-MM-DD HH:MM\"] [-i \"Description\"]  - Create a new task");
                     System.out.println("  complete TASK_ID [-c \"Comment\"]                                 - Mark a task as completed");
                     System.out.println("  reopen TASK_ID [-c \"Comment\"]                                   - Reopen a completed task");
-                    System.out.println("  list [-a | -c]                                                 - List tasks");
+                    System.out.println("  list [-a | -c] [-d | -r]                                       - List tasks");
+                    System.out.println("  assign TASK_ID MEMBER_ID                                        - Assign task to a family member");
+                    System.out.println("  unassign TASK_ID                                                - Unassign task from family member");
                     System.out.println("  add-member \"Name\"                                               - Add a new family member");
                     System.out.println("  remove-member ID                                                - Remove a family member");
                     System.out.println("  list-members                                                    - List all family members");
@@ -130,6 +138,8 @@ public class Main implements Runnable {
                     System.out.println("  create \"Clean kitchen\"                       - Create a simple task");
                     System.out.println("  complete 1 -c \"Cleaned thoroughly\"            - Mark task as completed with comment");
                     System.out.println("  list                                          - List active tasks");
+                    System.out.println("  assign 1 2                                    - Assign task 1 to family member 2");
+                    System.out.println("  unassign 1                                    - Unassign task 1");
                     System.out.println("  add-member \"John Smith\"                       - Add John as a family member");
                     System.out.println("  remove-member 1                               - Remove family member with ID 1");
                     System.out.println("  list-members                                  - List all family members");

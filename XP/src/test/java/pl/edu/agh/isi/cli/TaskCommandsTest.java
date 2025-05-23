@@ -10,6 +10,8 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import pl.edu.agh.isi.FamilyMember;
+import pl.edu.agh.isi.FamilyMemberService;
 import pl.edu.agh.isi.Task;
 import pl.edu.agh.isi.TaskRepository;
 import pl.edu.agh.isi.TaskService;
@@ -172,6 +174,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
@@ -211,6 +214,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.showAll = true;
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
@@ -249,6 +253,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.showOnlyCompleted = true;
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
@@ -282,6 +287,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
             // When
@@ -321,6 +327,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.sortAscending = true;
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
@@ -363,6 +370,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.sortDescending = true;
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
             
@@ -405,6 +413,7 @@ class TaskCommandsTest {
             
             ListTasksCommand command = Mockito.spy(new ListTasksCommand());
             doReturn(mockService).when(command).createTaskService(any());
+            doReturn(mock(FamilyMemberService.class)).when(command).createFamilyMemberService(any());
             command.sortAscending = true;
             command.sortDescending = true;
             command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
@@ -428,6 +437,302 @@ class TaskCommandsTest {
                 verify(mockService, never()).getTasksSortedByDueDateDescending(any());
             } finally {
                 System.setOut(originalOut);
+                System.setErr(originalErr);
+            }
+        }
+    }
+    
+    @Nested
+    @DisplayName("Assign Task Command")
+    class AssignTaskCommandTest {
+        
+        @Test
+        @DisplayName("should assign task to family member")
+        void shouldAssignTaskToFamilyMember() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "1";
+            String familyMemberId = "2";
+            Task task = new Task(1, "Clean basement", null, "");
+            FamilyMember member = new FamilyMember(2, "John Smith");
+            Task updatedTask = new Task(1, "Clean basement", null, "");
+            updatedTask.setAssignedTo(familyMemberId);
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.of(task));
+            when(mockFamilyMemberService.getFamilyMember(familyMemberId)).thenReturn(Optional.of(member));
+            when(mockTaskService.assignTask(taskId, familyMemberId)).thenReturn(updatedTask);
+            
+            AssignTaskCommand command = Mockito.spy(new AssignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.familyMemberId = familyMemberId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String output = outContent.toString();
+                assertTrue(output.contains("assigned to John Smith"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockFamilyMemberService).getFamilyMember(familyMemberId);
+                verify(mockTaskService).assignTask(taskId, familyMemberId);
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+        
+        @Test
+        @DisplayName("should show error when task not found")
+        void shouldShowErrorWhenTaskNotFound() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "999";
+            String familyMemberId = "2";
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.empty());
+            
+            AssignTaskCommand command = Mockito.spy(new AssignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.familyMemberId = familyMemberId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String error = errContent.toString();
+                assertTrue(error.contains("Task with ID 999 not found"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockFamilyMemberService, never()).getFamilyMember(anyString());
+                verify(mockTaskService, never()).assignTask(anyString(), anyString());
+            } finally {
+                System.setErr(originalErr);
+            }
+        }
+        
+        @Test
+        @DisplayName("should show error when family member not found")
+        void shouldShowErrorWhenFamilyMemberNotFound() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "1";
+            String familyMemberId = "999";
+            Task task = new Task(1, "Clean basement", null, "");
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.of(task));
+            when(mockFamilyMemberService.getFamilyMember(familyMemberId)).thenReturn(Optional.empty());
+            
+            AssignTaskCommand command = Mockito.spy(new AssignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.familyMemberId = familyMemberId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String error = errContent.toString();
+                assertTrue(error.contains("Family member with ID 999 not found"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockFamilyMemberService).getFamilyMember(familyMemberId);
+                verify(mockTaskService, never()).assignTask(anyString(), anyString());
+            } finally {
+                System.setErr(originalErr);
+            }
+        }
+        
+        @Test
+        @DisplayName("should show error when task is already assigned")
+        void shouldShowErrorWhenTaskIsAlreadyAssigned() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "1";
+            String familyMemberId = "2";
+            Task task = new Task(1, "Clean basement", null, "");
+            task.setAssignedTo("3"); // Already assigned to another member
+            FamilyMember member = new FamilyMember(2, "John Smith");
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.of(task));
+            when(mockFamilyMemberService.getFamilyMember(familyMemberId)).thenReturn(Optional.of(member));
+            
+            AssignTaskCommand command = Mockito.spy(new AssignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.familyMemberId = familyMemberId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String error = errContent.toString();
+                assertTrue(error.contains("Task is already assigned"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockFamilyMemberService).getFamilyMember(familyMemberId);
+                verify(mockTaskService, never()).assignTask(anyString(), anyString());
+            } finally {
+                System.setErr(originalErr);
+            }
+        }
+    }
+    
+    @Nested
+    @DisplayName("Unassign Task Command")
+    class UnassignTaskCommandTest {
+        
+        @Test
+        @DisplayName("should unassign task from family member")
+        void shouldUnassignTaskFromFamilyMember() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "1";
+            String familyMemberId = "2";
+            Task task = new Task(1, "Clean basement", null, "");
+            task.setAssignedTo(familyMemberId);
+            FamilyMember member = new FamilyMember(2, "John Smith");
+            Task updatedTask = new Task(1, "Clean basement", null, "");
+            updatedTask.setAssignedTo(null); // Unassigned
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.of(task));
+            when(mockFamilyMemberService.getFamilyMember(familyMemberId)).thenReturn(Optional.of(member));
+            when(mockTaskService.unassignTask(taskId)).thenReturn(updatedTask);
+            
+            UnassignTaskCommand command = Mockito.spy(new UnassignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String output = outContent.toString();
+                assertTrue(output.contains("unassigned from"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockTaskService).unassignTask(taskId);
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+        
+        @Test
+        @DisplayName("should show error when task not found")
+        void shouldShowErrorWhenTaskNotFound() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "999";
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.empty());
+            
+            UnassignTaskCommand command = Mockito.spy(new UnassignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String error = errContent.toString();
+                assertTrue(error.contains("Task with ID 999 not found"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockTaskService, never()).unassignTask(anyString());
+            } finally {
+                System.setErr(originalErr);
+            }
+        }
+        
+        @Test
+        @DisplayName("should show error when task is not assigned")
+        void shouldShowErrorWhenTaskIsNotAssigned() throws Exception {
+            // Given
+            TaskService mockTaskService = mock(TaskService.class);
+            FamilyMemberService mockFamilyMemberService = mock(FamilyMemberService.class);
+            
+            String taskId = "1";
+            Task task = new Task(1, "Clean basement", null, "");
+            // Task is not assigned
+            
+            when(mockTaskService.getTask(taskId)).thenReturn(Optional.of(task));
+            
+            UnassignTaskCommand command = Mockito.spy(new UnassignTaskCommand());
+            doReturn(mockTaskService).when(command).createTaskService(any());
+            doReturn(mockFamilyMemberService).when(command).createFamilyMemberService(any());
+            command.taskId = taskId;
+            command.tasksFile = tempDir.resolve("test_tasks.json").toFile();
+            command.familyMembersFile = tempDir.resolve("test_family_members.json").toFile();
+            
+            // When
+            ByteArrayOutputStream errContent = new ByteArrayOutputStream();
+            PrintStream originalErr = System.err;
+            System.setErr(new PrintStream(errContent));
+            
+            try {
+                command.call();
+                
+                // Then
+                String error = errContent.toString();
+                assertTrue(error.contains("Task is not assigned"));
+                verify(mockTaskService).getTask(taskId);
+                verify(mockTaskService, never()).unassignTask(anyString());
+            } finally {
                 System.setErr(originalErr);
             }
         }
